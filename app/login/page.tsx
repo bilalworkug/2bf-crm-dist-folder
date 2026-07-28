@@ -6,42 +6,52 @@ import { useAuth } from '@/lib/auth';
 import type { RoleKey } from '@/lib/types';
 import { Logo } from '@/lib/logo';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { toast } from 'sonner';
-import { Loader2, Factory, ShieldCheck, ScanLine, BarChart3, ChevronRight } from 'lucide-react';
+import { Loader2, Factory, ShieldCheck, ScanLine, BarChart3 } from 'lucide-react';
 
-const DEMO_ACCOUNTS: { role: string; roleKey: RoleKey; warehouse?: string }[] = [
-  { role: 'Admin', roleKey: 'admin' },
-  { role: 'Production', roleKey: 'production' },
-  { role: 'Warehouse 1', roleKey: 'warehouse', warehouse: 'WH1' },
-  { role: 'Warehouse 2', roleKey: 'warehouse', warehouse: 'WH2' },
-  { role: 'Warehouse 3', roleKey: 'warehouse', warehouse: 'WH3' },
-  { role: 'Dispatch', roleKey: 'dispatch' },
-  { role: 'Sales', roleKey: 'sales' },
-  { role: 'Accounts', roleKey: 'accounts' },
-  { role: 'Manager', roleKey: 'manager' },
-  { role: 'Reports', roleKey: 'reports' },
+const DEMO_ACCOUNTS: { role: string; email: string; password: string }[] = [
+  { role: 'Admin', email: 'admin@2bf.com.et', password: '2bf-admin-2025' },
+  { role: 'Production', email: 'production@2bf.com.et', password: '2bf-prod-2025' },
+  { role: 'Warehouse 1', email: 'warehouse1@2bf.com.et', password: '2bf-wh1-2025' },
+  { role: 'Warehouse 2', email: 'warehouse2@2bf.com.et', password: '2bf-wh2-2025' },
+  { role: 'Warehouse 3', email: 'warehouse3@2bf.com.et', password: '2bf-wh3-2025' },
+  { role: 'Dispatch', email: 'dispatch@2bf.com.et', password: '2bf-disp-2025' },
+  { role: 'Sales', email: 'sales@2bf.com.et', password: '2bf-sales-2025' },
+  { role: 'Accounts', email: 'accounts@2bf.com.et', password: '2bf-acc-2025' },
+  { role: 'Manager', email: 'manager@2bf.com.et', password: '2bf-mgr-2025' },
+  { role: 'Reports', email: 'reports@2bf.com.et', password: '2bf-rep-2025' },
 ];
 
 export default function LoginPage() {
-  const { profile, loading, quickSignIn } = useAuth();
+  const { profile, loading, signIn } = useAuth();
   const router = useRouter();
-  const [submitting, setSubmitting] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!loading && profile) router.replace('/dashboard');
   }, [profile, loading, router]);
 
-  async function quickLogin(roleKey: RoleKey, roleLabel: string) {
-    setSubmitting(roleLabel);
-    const { error } = await quickSignIn(roleKey);
-    setSubmitting(null);
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    const { error } = await signIn(email, password);
+    setSubmitting(false);
     if (error) {
       toast.error(error);
     } else {
-      toast.success(`Signed in as ${roleLabel}`);
+      toast.success('Welcome back');
       router.replace('/dashboard');
     }
+  }
+
+  function fillCredentials(acc: { email: string; password: string }) {
+    setEmail(acc.email);
+    setPassword(acc.password);
   }
 
   return (
@@ -84,50 +94,68 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Right quick-login panel */}
+        {/* Right login form + quick login */}
         <div className="flex items-center justify-center p-6 lg:p-12">
-          <div className="w-full max-w-md">
+          <div className="w-full max-w-sm">
             <div className="mb-8 lg:hidden">
               <Logo />
             </div>
             <div className="mb-8">
-              <h1 className="text-2xl font-bold tracking-tight">Quick Login</h1>
+              <h1 className="text-2xl font-bold tracking-tight">Sign in to your account</h1>
               <p className="mt-1.5 text-sm text-muted-foreground">
-                Click any role below to instantly enter the 2BF system. No password needed.
+                Enter your credentials or use a quick login below.
               </p>
             </div>
 
-            <div className="space-y-2.5">
-              {DEMO_ACCOUNTS.map((acc) => (
-                <button
-                  key={acc.role}
-                  type="button"
-                  disabled={submitting !== null}
-                  onClick={() => quickLogin(acc.roleKey, acc.role)}
-                  className="group flex w-full items-center justify-between rounded-lg border bg-card px-4 py-3 text-left transition-all hover:border-primary/40 hover:bg-accent hover:shadow-sm disabled:opacity-50"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-sm font-semibold text-amber-600 dark:text-amber-400">
-                      {acc.role.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{acc.role}</p>
-                      {acc.warehouse && (
-                        <p className="text-xs text-muted-foreground">{acc.warehouse}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {submitting === acc.role && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
-                    <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-                  </div>
-                </button>
-              ))}
-            </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="email">Email address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@2bf.com.et"
+                  autoComplete="email"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="text"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Your password"
+                  autoComplete="current-password"
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={submitting}>
+                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Sign in
+              </Button>
+            </form>
 
-            <p className="mt-6 text-center text-xs text-muted-foreground">
-              Each role sees a different dashboard and set of permissions.
-            </p>
+            <div className="mt-8 rounded-lg border bg-muted/40 p-4">
+              <p className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Quick login — click to fill credentials
+              </p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {DEMO_ACCOUNTS.map((acc) => (
+                  <button
+                    key={acc.email}
+                    type="button"
+                    onClick={() => fillCredentials(acc)}
+                    className="rounded-md border bg-card px-2.5 py-2 text-left text-xs transition-colors hover:border-primary/40 hover:bg-accent"
+                  >
+                    <span className="block font-medium text-foreground">{acc.role}</span>
+                    <span className="block font-mono text-[10px] text-muted-foreground">{acc.password}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
