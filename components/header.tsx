@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { NotificationsDropdown } from '@/components/notifications-dropdown';
 import { navItemsForRole } from '@/lib/nav';
 import { useAuth } from '@/lib/auth';
 
@@ -33,6 +34,7 @@ export function Header() {
         </nav>
       </div>
       <div className="flex items-center gap-2">
+        <NotificationsDropdown />
         <ThemeToggle />
       </div>
     </header>

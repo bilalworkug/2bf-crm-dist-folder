@@ -7,10 +7,12 @@ import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState } from '@/components/empty-state';
-import { Boxes, PackageCheck, Truck, Undo2, Search } from 'lucide-react';
+import { exportToCsv } from '@/lib/export';
+import { Boxes, PackageCheck, Truck, Undo2, Search, Download } from 'lucide-react';
 
 interface InventoryRow {
   product: Product;
@@ -110,6 +112,15 @@ export default function InventoryPage() {
       <PageHeader
         title="Inventory"
         description="Stock levels by product and warehouse, with status breakdown."
+        actions={
+          <Button variant="outline" onClick={() => {
+            exportToCsv(`inventory-${new Date().toISOString().slice(0,10)}.csv`,
+              ['Product', 'SKU', 'Warehouse', 'Received', 'Dispatched', 'Available', 'Returned', 'Damaged', 'Expired'],
+              filtered.map((r) => [r.product.name, r.product.sku ?? '', r.warehouse?.code ?? '', r.received, r.dispatched, r.available, r.returned, r.damaged, r.expired]));
+          }}>
+            <Download className="mr-2 h-4 w-4" /> Export
+          </Button>
+        }
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

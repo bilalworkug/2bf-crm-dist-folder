@@ -15,13 +15,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState } from '@/components/empty-state';
-import { ShoppingCart, Plus, Search, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { ShoppingCart, Plus, Search, Clock, CheckCircle2, XCircle, Download } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import { formatDateShort, formatMoney } from '@/lib/format';
 import { ORDER_STATUSES } from '@/lib/types';
+import { exportToCsv } from '@/lib/export';
 
 export default function OrdersPage() {
   const { profile } = useAuth();
@@ -158,7 +159,15 @@ export default function OrdersPage() {
         title="Orders"
         description="Create and track customer orders through the fulfillment flow."
         actions={
-          canEdit ? (
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => {
+              exportToCsv(`orders-${new Date().toISOString().slice(0,10)}.csv`,
+                ['Order #', 'Customer', 'Status', 'Total', 'Paid', 'Sales person', 'Created'],
+                filtered.map((o) => [o.order_number, o.customer?.customer_name ?? '', o.status, o.total_amount, o.paid_amount, o.sales_person?.full_name ?? '', formatDateShort(o.created_at)]));
+            }}>
+              <Download className="mr-2 h-4 w-4" /> Export
+            </Button>
+            {canEdit ? (
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button><Plus className="mr-2 h-4 w-4" /> New order</Button>
@@ -226,7 +235,8 @@ export default function OrdersPage() {
                 </form>
               </DialogContent>
             </Dialog>
-          ) : undefined
+            ) : undefined}
+          </div>
         }
       />
 

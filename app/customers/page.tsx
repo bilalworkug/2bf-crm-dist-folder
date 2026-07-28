@@ -14,12 +14,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState } from '@/components/empty-state';
-import { Users, UserPlus, Search, Phone, MapPin, Building2 } from 'lucide-react';
+import { Users, UserPlus, Search, Phone, MapPin, Building2, Download } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import { formatDateShort } from '@/lib/format';
+import { exportToCsv } from '@/lib/export';
 
 export default function CustomersPage() {
   const { profile } = useAuth();
@@ -99,7 +100,15 @@ export default function CustomersPage() {
         description="Manage customer records and view their order history."
         actions={
           canEdit ? (
-            <Dialog open={open} onOpenChange={setOpen}>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => {
+                exportToCsv(`customers-${new Date().toISOString().slice(0,10)}.csv`,
+                  ['Name', 'Company', 'Phone', 'Email', 'Location', 'Orders', 'Created'],
+                  filtered.map((c) => [c.customer_name, c.company_name ?? '', c.phone ?? '', c.email ?? '', c.location ?? '', c.order_count ?? 0, formatDateShort(c.created_at)]));
+              }}>
+                <Download className="mr-2 h-4 w-4" /> Export
+              </Button>
+              <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button><UserPlus className="mr-2 h-4 w-4" /> New customer</Button>
               </DialogTrigger>
@@ -155,6 +164,7 @@ export default function CustomersPage() {
                 </form>
               </DialogContent>
             </Dialog>
+            </div>
           ) : undefined
         }
       />
