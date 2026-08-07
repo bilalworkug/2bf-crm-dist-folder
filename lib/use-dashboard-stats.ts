@@ -74,11 +74,11 @@ export function useDashboardStats(): DashboardStats {
       ]);
 
       const { data: orderMoney } = await supabase
-        .from('orders')
-        .select('total_amount, paid_amount');
+        .from('view_order_financials')
+        .select('*');
 
-      const outstanding = (orderMoney ?? []).reduce((s, o) => s + (Number(o.total_amount) - Number(o.paid_amount)), 0);
-      const paid = (orderMoney ?? []).reduce((s, o) => s + Number(o.paid_amount), 0);
+      const outstanding = (orderMoney ?? []).reduce((s, o) => s + Number(o.total_outstanding), 0);
+      const paid = (orderMoney ?? []).reduce((s, o) => s + Number(o.total_paid), 0);
 
       if (cancelled) return;
       setStats({

@@ -6,7 +6,7 @@ import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
 interface StatCardProps {
   label: string;
   value: string | number;
-  icon: LucideIcon;
+  icon?: LucideIcon;
   hint?: string;
   trend?: number;
   accent?: 'primary' | 'success' | 'warning' | 'destructive' | 'neutral';
@@ -30,9 +30,11 @@ export function StatCard({ label, value, icon: Icon, hint, trend, accent = 'prim
             <p className="mt-1.5 text-2xl font-bold tracking-tight text-foreground">{value}</p>
             {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
           </div>
-          <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', ACCENTS[accent])}>
-            <Icon className="h-5 w-5" />
-          </div>
+          {Icon && (
+            <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', ACCENTS[accent])}>
+              <Icon className="h-5 w-5" />
+            </div>
+          )}
         </div>
         {typeof trend === 'number' && (
           <div className="mt-3 flex items-center gap-1 text-xs">

@@ -74,90 +74,37 @@ export default function DispatchPage() {
     setSubmitting(true);
     setLastResult(null);
 
-    // 1. Check if already dispatched
-    const { data: alreadyDispatched } = await supabase
-      .from('dispatches')
-      .select('id')
+    // First, look up which warehouse this barcode is currently in to pass to fn_dispatch_box
+    const { data: boxData } = await supabase
+      .from('boxes')
+      .select('current_warehouse_id')
       .eq('barcode', barcode.trim())
       .maybeSingle();
-
-    if (alreadyDispatched) {
-      const msg = `Already dispatched: barcode ${barcode} was already sent out`;
+      
+    if (!boxData || !boxData.current_warehouse_id) {
+      const msg = `Rejected: barcode ${barcode} is not in a warehouse.`;
       toast.error(msg);
       setLastResult({ type: 'error', message: msg });
       setSubmitting(false);
       return;
     }
 
-    // 2. Check if received into warehouse (must exist in stock)
-    const { data: receipt } = await supabase
-      .from('warehouse_receipts')
-      .select('*')
-      .eq('barcode', barcode.trim())
-      .maybeSingle();
-
-    if (!receipt) {
-      const msg = `Rejected: barcode ${barcode} is not in warehouse stock. It must be received before dispatch.`;
-      toast.error(msg);
-      setLastResult({ type: 'error', message: msg });
-      setSubmitting(false);
-      return;
-    }
-
-    const wr = receipt as WarehouseReceipt;
-
-    // 3. Insert dispatch
-    const { data: dispatch, error } = await supabase
-      .from('dispatches')
-      .insert({
-        barcode: barcode.trim(),
-        warehouse_receipt_id: wr.id,
-        order_id: orderId,
-        warehouse_id: wr.warehouse_id,
-        product_id: wr.product_id,
-        quantity: wr.quantity,
-        dispatched_by: profile?.id,
-      })
-      .select()
-      .single();
+    const { error } = await supabase.rpc('fn_dispatch_box', {
+      p_barcode: barcode.trim(),
+      p_order_id: orderId,
+      p_warehouse_id: boxData.current_warehouse_id,
+      p_user_id: profile?.id,
+    });
 
     if (error) {
-      toast.error(error.message);
+      const msg = error.message;
+      toast.error(msg);
+      setLastResult({ type: 'error', message: msg });
       setSubmitting(false);
       return;
     }
 
-    // 4. Fetch customer for barcode history
-    const { data: order } = await supabase
-      .from('orders')
-      .select('customer_id')
-      .eq('id', orderId)
-      .maybeSingle();
-
-    // 5. Barcode history
-    await supabase.from('barcode_history').insert({
-      barcode: barcode.trim(),
-      action: 'dispatch',
-      warehouse_id: wr.warehouse_id,
-      product_id: wr.product_id,
-      order_id: orderId,
-      customer_id: order?.customer_id ?? null,
-      user_id: profile?.id,
-    });
-
-    // 6. Audit log
-    await supabase.from('audit_logs').insert({
-      user_id: profile?.id,
-      action: 'dispatch',
-      warehouse_id: wr.warehouse_id,
-      product_id: wr.product_id,
-      barcode: barcode.trim(),
-      entity_type: 'dispatches',
-      entity_id: dispatch.id,
-      details: { order_id: orderId, quantity: wr.quantity },
-    });
-
-    const msg = `Dispatched ${barcode} to order ${orders.find((o) => o.id === orderId)?.order_number} — ${wr.quantity} cartons`;
+    const msg = `Dispatched ${barcode} to order ${orders.find((o) => o.id === orderId)?.order_number}`;
     toast.success(msg);
     setLastResult({ type: 'success', message: msg });
     setBarcode('');
@@ -250,7 +197,6 @@ export default function DispatchPage() {
                   <TableHead>Product</TableHead>
                   <TableHead>Warehouse</TableHead>
                   <TableHead>Order</TableHead>
-                  <TableHead className="text-center">Qty</TableHead>
                   <TableHead>Dispatched by</TableHead>
                   <TableHead>Dispatched at</TableHead>
                 </TableRow>
@@ -262,7 +208,6 @@ export default function DispatchPage() {
                     <TableCell>{d.product?.name ?? '—'}</TableCell>
                     <TableCell>{d.warehouse?.code ?? '—'}</TableCell>
                     <TableCell className="font-mono text-sm">{d.order?.order_number ?? '—'}</TableCell>
-                    <TableCell className="text-center">{d.quantity}</TableCell>
                     <TableCell className="text-sm">{d.dispatcher?.full_name ?? '—'}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{formatDate(d.dispatched_at)}</TableCell>
                   </TableRow>

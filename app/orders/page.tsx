@@ -35,7 +35,11 @@ export default function OrdersPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    customer_id: string;
+    notes: string;
+    items: { product_id: string; quantity: number; unit_price: number; warehouse_id: string; discount_amount?: number; discount_reason?: string }[];
+  }>({
     customer_id: '',
     notes: '',
     items: [{ product_id: '', quantity: 1, unit_price: 0, warehouse_id: '' }],
@@ -82,17 +86,22 @@ export default function OrdersPage() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.customer_id) {
-      toast.error('Select a customer');
-      return;
-    }
-    if (!form.items[0].product_id) {
-      toast.error('Add at least one product');
-      return;
-    }
+    if (!form.customer_id) return toast.error('Select a customer');
+    if (!form.items[0].product_id) return toast.error('Add at least one product');
+
+    // 1. Fetch active standard prices
+    const { data: activePrices } = await supabase.from('product_prices').select('product_id, price').eq('is_active', true);
+    const priceMap = new Map((activePrices || []).map(p => [p.product_id, p.price]));
 
     const orderNum = `ORD-2025-${String(Date.now()).slice(-4)}`;
-    const total = form.items.reduce((s, it) => s + it.quantity * it.unit_price, 0);
+    
+    // Calculate total based on unit_price (which might change after discount approval, but for now we set initial total)
+    let total = 0;
+    for (const it of form.items) {
+       const sp = priceMap.get(it.product_id) || 0;
+       const dp = it.discount_amount || 0;
+       total += (sp - dp) * it.quantity;
+    }
 
     const { data: order, error: orderErr } = await supabase
       .from('orders')
@@ -104,29 +113,39 @@ export default function OrdersPage() {
         sales_person_id: profile?.id,
         total_amount: total,
         paid_amount: 0,
-      })
-      .select()
-      .single();
+      }).select().single();
 
-    if (orderErr) {
-      toast.error(orderErr.message);
-      return;
-    }
+    if (orderErr) return toast.error(orderErr.message);
 
-    const items = form.items
-      .filter((it) => it.product_id)
-      .map((it) => ({
+    for (const it of form.items) {
+      if (!it.product_id) continue;
+      const sp = priceMap.get(it.product_id) || 0;
+      
+      // Insert with standard price
+      const { data: insertedItem, error: itemErr } = await supabase.from('order_items').insert({
         order_id: order.id,
         product_id: it.product_id,
         quantity: it.quantity,
-        unit_price: it.unit_price,
+        standard_price: sp,
+        unit_price: sp, 
         warehouse_id: it.warehouse_id || null,
-      }));
+      }).select().single();
 
-    const { error: itemsErr } = await supabase.from('order_items').insert(items);
-    if (itemsErr) {
-      toast.error(itemsErr.message);
-      return;
+      if (itemErr) {
+        toast.error(`Error inserting item: ${itemErr.message}`);
+        continue;
+      }
+
+      // If discount requested, call RPC
+      if ((it.discount_amount || 0) > 0 && it.discount_reason && profile) {
+        await supabase.rpc('fn_request_discount', {
+          p_order_item_id: insertedItem.id,
+          p_discount_amount: it.discount_amount || 0,
+          p_reason: it.discount_reason,
+          p_sales_id: profile.id,
+          p_sales_role: profile.role
+        });
+      }
     }
 
     await supabase.from('audit_logs').insert({
@@ -139,12 +158,12 @@ export default function OrdersPage() {
 
     toast.success('Order created');
     setOpen(false);
-    setForm({ customer_id: '', notes: '', items: [{ product_id: '', quantity: 1, unit_price: 0, warehouse_id: '' }] });
+    setForm({ customer_id: '', notes: '', items: [{ product_id: '', quantity: 1, unit_price: 0, warehouse_id: '', discount_amount: 0, discount_reason: '' }] });
     load();
   }
 
   function addItem() {
-    setForm({ ...form, items: [...form.items, { product_id: '', quantity: 1, unit_price: 0, warehouse_id: '' }] });
+    setForm({ ...form, items: [...form.items, { product_id: '', quantity: 1, unit_price: 0, warehouse_id: '', discount_amount: 0, discount_reason: '' }] });
   }
 
   function updateItem(idx: number, field: string, value: string | number) {

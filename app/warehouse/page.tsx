@@ -75,80 +75,23 @@ export default function WarehousePage() {
     setSubmitting(true);
     setLastResult(null);
 
-    // 1. Check if already received (duplicate)
-    const { data: alreadyReceived } = await supabase
-      .from('warehouse_receipts')
-      .select('id')
-      .eq('barcode', barcode.trim())
-      .maybeSingle();
+    const { data: warehouseName } = await supabase.from('warehouses').select('code').eq('id', warehouseId).single();
 
-    if (alreadyReceived) {
-      const msg = `Duplicate receive: barcode ${barcode} was already received into a warehouse`;
-      toast.error(msg);
-      setLastResult({ type: 'error', message: msg });
-      setSubmitting(false);
-      return;
-    }
-
-    // 2. Check if production-scanned (valid)
-    const { data: prodScan } = await supabase
-      .from('production_scans')
-      .select('*')
-      .eq('barcode', barcode.trim())
-      .maybeSingle();
-
-    if (!prodScan) {
-      const msg = `Rejected: barcode ${barcode} was not scanned by production. Random barcodes cannot be received.`;
-      toast.error(msg);
-      setLastResult({ type: 'error', message: msg });
-      setSubmitting(false);
-      return;
-    }
-
-    const ps = prodScan as ProductionScan;
-
-    // 3. Insert receipt
-    const { data: receipt, error } = await supabase
-      .from('warehouse_receipts')
-      .insert({
-        barcode: barcode.trim(),
-        production_scan_id: ps.id,
-        warehouse_id: warehouseId,
-        product_id: ps.product_id,
-        quantity: ps.quantity,
-        received_by: profile?.id,
-      })
-      .select()
-      .single();
+    const { error } = await supabase.rpc('fn_receive_box', {
+      p_barcode: barcode.trim(),
+      p_warehouse_id: warehouseId,
+      p_user_id: profile?.id,
+    });
 
     if (error) {
-      toast.error(error.message);
+      const msg = error.message;
+      toast.error(msg);
+      setLastResult({ type: 'error', message: msg });
       setSubmitting(false);
       return;
     }
 
-    // 4. Barcode history
-    await supabase.from('barcode_history').insert({
-      barcode: barcode.trim(),
-      action: 'warehouse_receipt',
-      warehouse_id: warehouseId,
-      product_id: ps.product_id,
-      user_id: profile?.id,
-    });
-
-    // 5. Audit log
-    await supabase.from('audit_logs').insert({
-      user_id: profile?.id,
-      action: 'warehouse_receipt',
-      warehouse_id: warehouseId,
-      product_id: ps.product_id,
-      barcode: barcode.trim(),
-      entity_type: 'warehouse_receipts',
-      entity_id: receipt.id,
-      details: { quantity: ps.quantity },
-    });
-
-    const msg = `Received ${barcode} into ${warehouses.find((w) => w.id === warehouseId)?.code} — ${ps.quantity} cartons`;
+    const msg = `Received ${barcode} into ${warehouseName?.code || 'Warehouse'}`;
     toast.success(msg);
     setLastResult({ type: 'success', message: msg });
     setBarcode('');
@@ -244,7 +187,6 @@ export default function WarehousePage() {
                   <TableHead>Barcode</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Warehouse</TableHead>
-                  <TableHead className="text-center">Qty</TableHead>
                   <TableHead>Received by</TableHead>
                   <TableHead>Received at</TableHead>
                 </TableRow>
@@ -255,7 +197,6 @@ export default function WarehousePage() {
                     <TableCell className="font-mono text-sm font-medium">{r.barcode}</TableCell>
                     <TableCell>{r.product?.name ?? '—'}</TableCell>
                     <TableCell>{r.warehouse?.code ?? '—'}</TableCell>
-                    <TableCell className="text-center">{r.quantity}</TableCell>
                     <TableCell className="text-sm">{r.receiver?.full_name ?? '—'}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{formatDate(r.received_at)}</TableCell>
                   </TableRow>

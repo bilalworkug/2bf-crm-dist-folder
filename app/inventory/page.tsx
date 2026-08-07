@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import type { Product, Warehouse, WarehouseReceipt, Dispatch, ReturnRecord } from '@/lib/types';
+import type { Product, Warehouse } from '@/lib/types';
 import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,16 +13,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { EmptyState } from '@/components/empty-state';
 import { exportToCsv } from '@/lib/export';
 import { Boxes, PackageCheck, Truck, Undo2, Search, Download } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
 
 interface InventoryRow {
   product: Product;
   warehouse: Warehouse | null;
-  received: number;
-  dispatched: number;
+  total_physical: number;
   available: number;
-  returned: number;
+  allocated: number;
+  dispatched: number;
   damaged: number;
   expired: number;
+  returned: number;
 }
 
 export default function InventoryPage() {
@@ -33,57 +35,99 @@ export default function InventoryPage() {
   const [search, setSearch] = useState('');
   const [warehouseFilter, setWarehouseFilter] = useState('all');
   const [productFilter, setProductFilter] = useState('all');
+  const { profile } = useAuth();
+
+  const isWarehouseUser = profile?.role === 'warehouse';
+  const isSalesUser = profile?.role === 'sales';
 
   useEffect(() => {
+    if (!profile) return;
+    
     (async () => {
-      const [{ data: prods }, { data: whs }, { data: receipts }, { data: dispatches }, { data: returns }] = await Promise.all([
+      // 1. Fetch data
+      const [{ data: prods }, { data: whs }, { data: boxes }] = await Promise.all([
         supabase.from('products').select('*').order('name'),
         supabase.from('warehouses').select('*').order('code'),
-        supabase.from('warehouse_receipts').select('*, product:products(*), warehouse:warehouses(*)'),
-        supabase.from('dispatches').select('*, product:products(*), warehouse:warehouses(*)'),
-        supabase.from('returns').select('*, product:products(*), warehouse:warehouses(*)'),
+        supabase.from('boxes').select('product_id, current_warehouse_id, status')
       ]);
 
       setProducts(prods ?? []);
-      setWarehouses(whs ?? []);
-
-      const receiptList = (receipts ?? []) as (WarehouseReceipt & { product?: Product; warehouse?: Warehouse })[];
-      const dispatchList = (dispatches ?? []) as (Dispatch & { product?: Product; warehouse?: Warehouse })[];
-      const returnList = (returns ?? []) as (ReturnRecord & { product?: Product; warehouse?: Warehouse })[];
+      
+      // Filter warehouses for Warehouse User
+      let availableWarehouses = whs ?? [];
+      if (isWarehouseUser && profile.warehouse_id) {
+        availableWarehouses = availableWarehouses.filter(w => w.id === profile.warehouse_id);
+      }
+      setWarehouses(availableWarehouses);
 
       const map = new Map<string, InventoryRow>();
-      const key = (pId: string, wId: string) => `${pId}|${wId ?? 'null'}`;
+      const key = (pId: string, wId: string | null) => `${pId}|${wId ?? 'null'}`;
 
-      for (const r of receiptList) {
-        const k = key(r.product_id, r.warehouse_id);
-        const row = map.get(k) ?? { product: r.product!, warehouse: r.warehouse ?? null, received: 0, dispatched: 0, available: 0, returned: 0, damaged: 0, expired: 0 };
-        row.received += r.quantity;
-        row.available += r.quantity;
-        map.set(k, row);
-      }
-      for (const d of dispatchList) {
-        const k = key(d.product_id, d.warehouse_id);
-        const row = map.get(k);
-        if (row) {
-          row.dispatched += d.quantity;
-          row.available -= d.quantity;
+      const prodMap = new Map((prods ?? []).map(p => [p.id, p]));
+      const whMap = new Map(availableWarehouses.map(w => [w.id, w]));
+
+      for (const b of (boxes ?? [])) {
+        if (!b.current_warehouse_id) continue;
+        
+        // Skip boxes not in allowed warehouses
+        if (isWarehouseUser && b.current_warehouse_id !== profile.warehouse_id) continue;
+        
+        const k = key(b.product_id, b.current_warehouse_id);
+        if (!map.has(k)) {
+          map.set(k, {
+            product: prodMap.get(b.product_id) as Product,
+            warehouse: whMap.get(b.current_warehouse_id) as Warehouse,
+            total_physical: 0, available: 0, allocated: 0, dispatched: 0, damaged: 0, expired: 0, returned: 0
+          });
+        }
+        const row = map.get(k)!;
+        
+        if (!row.warehouse) continue; // Skip if warehouse wasn't in allowed list (should be caught above)
+
+        row.total_physical++;
+        
+        switch (b.status) {
+          case 'in_warehouse':
+          case 'returned':
+            row.available++;
+            break;
+          case 'allocated':
+            row.allocated++;
+            break;
+          case 'damaged':
+            row.damaged++;
+            break;
+          case 'expired':
+            row.expired++;
+            break;
         }
       }
-      for (const ret of returnList) {
-        if (!ret.product_id) continue;
-        const k = key(ret.product_id, ret.warehouse_id ?? 'null');
-        const row = map.get(k) ?? { product: ret.product!, warehouse: ret.warehouse ?? null, received: 0, dispatched: 0, available: 0, returned: 0, damaged: 0, expired: 0 };
-        if (ret.return_type === 'returned') row.returned += ret.quantity;
-        if (ret.return_type === 'damaged') row.damaged += ret.quantity;
-        if (ret.return_type === 'expired') row.expired += ret.quantity;
-        row.available -= ret.quantity;
-        map.set(k, row);
+
+      // Sales users shouldn't see dispatched info as it's not "Available Stock"
+      if (!isSalesUser) {
+        const { data: dispatches } = await supabase.from('dispatches').select('product_id, warehouse_id, quantity');
+        for (const d of (dispatches ?? [])) {
+          if (isWarehouseUser && d.warehouse_id !== profile.warehouse_id) continue;
+          
+          const k = key(d.product_id, d.warehouse_id);
+          if (!map.has(k)) {
+            map.set(k, {
+              product: prodMap.get(d.product_id) as Product,
+              warehouse: whMap.get(d.warehouse_id) as Warehouse,
+              total_physical: 0, available: 0, allocated: 0, dispatched: 0, damaged: 0, expired: 0, returned: 0
+            });
+          }
+          const row = map.get(k)!;
+          if (row.warehouse) {
+            row.dispatched += d.quantity;
+          }
+        }
       }
 
       setRows(Array.from(map.values()).sort((a, b) => a.product.name.localeCompare(b.product.name)));
       setLoading(false);
     })();
-  }, []);
+  }, [profile, isWarehouseUser, isSalesUser]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -97,26 +141,33 @@ export default function InventoryPage() {
 
   const totals = filtered.reduce(
     (acc, r) => ({
-      received: acc.received + r.received,
-      dispatched: acc.dispatched + r.dispatched,
+      total_physical: acc.total_physical + r.total_physical,
       available: acc.available + r.available,
-      returned: acc.returned + r.returned,
+      allocated: acc.allocated + r.allocated,
+      dispatched: acc.dispatched + r.dispatched,
       damaged: acc.damaged + r.damaged,
       expired: acc.expired + r.expired,
+      returned: acc.returned + r.returned,
     }),
-    { received: 0, dispatched: 0, available: 0, returned: 0, damaged: 0, expired: 0 }
+    { total_physical: 0, available: 0, allocated: 0, dispatched: 0, damaged: 0, expired: 0, returned: 0 }
   );
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Inventory"
-        description="Stock levels by product and warehouse, with status breakdown."
+        description={isSalesUser ? "Available stock across all warehouses." : "Strict physical stock tracking."}
         actions={
           <Button variant="outline" onClick={() => {
+            const columns = isSalesUser ? 
+              ['Product', 'Warehouse', 'Available'] : 
+              ['Product', 'Warehouse', 'Total Physical', 'Available', 'Allocated', 'Dispatched', 'Damaged', 'Expired'];
+            
             exportToCsv(`inventory-${new Date().toISOString().slice(0,10)}.csv`,
-              ['Product', 'SKU', 'Warehouse', 'Received', 'Dispatched', 'Available', 'Returned', 'Damaged', 'Expired'],
-              filtered.map((r) => [r.product.name, r.product.sku ?? '', r.warehouse?.code ?? '', r.received, r.dispatched, r.available, r.returned, r.damaged, r.expired]));
+              columns,
+              filtered.map((r) => isSalesUser ? 
+                [r.product.name, r.warehouse?.code ?? '', r.available] : 
+                [r.product.name, r.warehouse?.code ?? '', r.total_physical, r.available, r.allocated, r.dispatched, r.damaged, r.expired]));
           }}>
             <Download className="mr-2 h-4 w-4" /> Export
           </Button>
@@ -124,10 +175,14 @@ export default function InventoryPage() {
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Available stock" value={totals.available} icon={Boxes} accent="success" />
-        <StatCard label="Received stock" value={totals.received} icon={PackageCheck} accent="primary" />
-        <StatCard label="Dispatched" value={totals.dispatched} icon={Truck} accent="warning" />
-        <StatCard label="Returned / damaged / expired" value={totals.returned + totals.damaged + totals.expired} icon={Undo2} accent="destructive" />
+        <StatCard label="Available for Sale" value={totals.available} icon={PackageCheck} accent="success" hint={!isSalesUser ? "in_warehouse + good returns" : undefined} />
+        {!isSalesUser && (
+          <>
+            <StatCard label="Allocated (Pending Dispatch)" value={totals.allocated} icon={Boxes} accent="primary" />
+            <StatCard label="Dispatched" value={totals.dispatched} icon={Truck} accent="warning" />
+            <StatCard label="Damaged / Expired" value={totals.damaged + totals.expired} icon={Undo2} accent="destructive" />
+          </>
+        )}
       </div>
 
       <Card>
@@ -146,7 +201,7 @@ export default function InventoryPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={warehouseFilter} onValueChange={setWarehouseFilter}>
+            <Select value={warehouseFilter} onValueChange={setWarehouseFilter} disabled={isWarehouseUser}>
               <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="All warehouses" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All warehouses</SelectItem>
@@ -171,12 +226,16 @@ export default function InventoryPage() {
                 <TableRow>
                   <TableHead>Product</TableHead>
                   <TableHead>Warehouse</TableHead>
-                  <TableHead className="text-center">Received</TableHead>
-                  <TableHead className="text-center">Dispatched</TableHead>
-                  <TableHead className="text-center">Available</TableHead>
-                  <TableHead className="text-center">Returned</TableHead>
-                  <TableHead className="text-center">Damaged</TableHead>
-                  <TableHead className="text-center">Expired</TableHead>
+                  {!isSalesUser && <TableHead className="text-center text-primary">Physical Total</TableHead>}
+                  <TableHead className="text-center text-green-600">Available</TableHead>
+                  {!isSalesUser && (
+                    <>
+                      <TableHead className="text-center text-blue-600">Allocated</TableHead>
+                      <TableHead className="text-center text-orange-500">Dispatched</TableHead>
+                      <TableHead className="text-center text-red-600">Damaged</TableHead>
+                      <TableHead className="text-center text-red-600">Expired</TableHead>
+                    </>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -184,23 +243,31 @@ export default function InventoryPage() {
                   <TableRow key={i}>
                     <TableCell className="font-medium">{r.product.name}</TableCell>
                     <TableCell>{r.warehouse?.code ?? '—'}</TableCell>
-                    <TableCell className="text-center">{r.received}</TableCell>
-                    <TableCell className="text-center">{r.dispatched}</TableCell>
-                    <TableCell className="text-center font-bold">{r.available}</TableCell>
-                    <TableCell className="text-center text-amber-600 dark:text-amber-400">{r.returned}</TableCell>
-                    <TableCell className="text-center text-red-600 dark:text-red-400">{r.damaged}</TableCell>
-                    <TableCell className="text-center text-red-600 dark:text-red-400">{r.expired}</TableCell>
+                    {!isSalesUser && <TableCell className="text-center font-bold text-primary">{r.total_physical}</TableCell>}
+                    <TableCell className="text-center font-bold text-green-600">{r.available}</TableCell>
+                    {!isSalesUser && (
+                      <>
+                        <TableCell className="text-center font-bold text-blue-600">{r.allocated}</TableCell>
+                        <TableCell className="text-center text-orange-500">{r.dispatched}</TableCell>
+                        <TableCell className="text-center text-red-600">{r.damaged}</TableCell>
+                        <TableCell className="text-center text-red-600">{r.expired}</TableCell>
+                      </>
+                    )}
                   </TableRow>
                 ))}
                 <TableRow className="border-t-2 font-bold">
                   <TableCell>Totals</TableCell>
                   <TableCell />
-                  <TableCell className="text-center">{totals.received}</TableCell>
-                  <TableCell className="text-center">{totals.dispatched}</TableCell>
-                  <TableCell className="text-center">{totals.available}</TableCell>
-                  <TableCell className="text-center">{totals.returned}</TableCell>
-                  <TableCell className="text-center">{totals.damaged}</TableCell>
-                  <TableCell className="text-center">{totals.expired}</TableCell>
+                  {!isSalesUser && <TableCell className="text-center text-primary">{totals.total_physical}</TableCell>}
+                  <TableCell className="text-center text-green-600">{totals.available}</TableCell>
+                  {!isSalesUser && (
+                    <>
+                      <TableCell className="text-center text-blue-600">{totals.allocated}</TableCell>
+                      <TableCell className="text-center text-orange-500">{totals.dispatched}</TableCell>
+                      <TableCell className="text-center text-red-600">{totals.damaged}</TableCell>
+                      <TableCell className="text-center text-red-600">{totals.expired}</TableCell>
+                    </>
+                  )}
                 </TableRow>
               </TableBody>
             </Table>

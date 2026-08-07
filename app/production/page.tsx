@@ -12,7 +12,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState } from '@/components/empty-state';
-import { ScanLine, Package, AlertTriangle, CheckCircle2, Search } from 'lucide-react';
+import { ScanLine, Package, AlertTriangle, CheckCircle2, Search, Camera } from 'lucide-react';
+import { CameraScanner } from '@/components/camera-scanner';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import { formatDate, isToday, startOfTodayISO } from '@/lib/format';
@@ -25,8 +26,6 @@ export default function ProductionPage() {
   const [search, setSearch] = useState('');
   const [barcode, setBarcode] = useState('');
   const [productId, setProductId] = useState('');
-  const [batchLot, setBatchLot] = useState('');
-  const [quantity, setQuantity] = useState(1);
   const [submitting, setSubmitting] = useState(false);
 
   const canEdit = profile && ['admin', 'production', 'manager'].includes(profile.role);
@@ -53,82 +52,54 @@ export default function ProductionPage() {
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return scans.filter(
-      (s) => !q || s.barcode.toLowerCase().includes(q) || s.product?.name.toLowerCase().includes(q) || s.batch_lot?.toLowerCase().includes(q)
+      (s) => !q || s.barcode.toLowerCase().includes(q) || s.product?.name.toLowerCase().includes(q)
     );
   }, [scans, search]);
 
   const scansToday = scans.filter((s) => isToday(s.scanned_at)).length;
 
-  async function handleScan(e: React.FormEvent) {
-    e.preventDefault();
-    if (!barcode.trim()) {
-      toast.error('Enter a barcode');
+  const [cameraOpen, setCameraOpen] = useState(false);
+
+  async function submitScan(scanCode: string) {
+    if (!scanCode.trim()) {
+      toast.error('Empty barcode scanned');
       return;
     }
     if (!productId) {
-      toast.error('Select a product');
+      toast.error('Select a product before scanning');
+      setCameraOpen(false); // Force user to select product
       return;
     }
 
     setSubmitting(true);
+    setBarcode(scanCode); // Update input field so user sees what was just scanned
 
-    // Check for duplicate
-    const { data: existing } = await supabase
-      .from('production_scans')
-      .select('id')
-      .eq('barcode', barcode.trim())
-      .maybeSingle();
-
-    if (existing) {
-      toast.error(`Duplicate scan: barcode ${barcode} was already scanned`);
-      setSubmitting(false);
-      return;
-    }
-
-    const { data: scan, error } = await supabase
-      .from('production_scans')
-      .insert({
-        barcode: barcode.trim(),
-        product_id: productId,
-        batch_lot: batchLot.trim() || null,
-        quantity,
-        scanned_by: profile?.id,
-      })
-      .select()
-      .single();
+    const { error } = await supabase.rpc('fn_produce_box', {
+      p_barcode: scanCode.trim(),
+      p_product_id: productId,
+      p_user_id: profile?.id,
+    });
 
     if (error) {
-      toast.error(error.message);
+      if (error.message.includes('duplicate key') || error.code === '23505') {
+        toast.error(`Duplicate scan: barcode ${scanCode} was already scanned`);
+      } else {
+        toast.error(error.message);
+      }
       setSubmitting(false);
       return;
     }
 
-    // Append to barcode history
-    await supabase.from('barcode_history').insert({
-      barcode: barcode.trim(),
-      action: 'production_scan',
-      product_id: productId,
-      user_id: profile?.id,
-      notes: batchLot.trim() || null,
-    });
-
-    // Audit log
-    await supabase.from('audit_logs').insert({
-      user_id: profile?.id,
-      action: 'production_scan',
-      product_id: productId,
-      barcode: barcode.trim(),
-      entity_type: 'production_scans',
-      entity_id: scan.id,
-      details: { quantity, batch_lot: batchLot.trim() || null },
-    });
-
-    toast.success(`Scanned ${barcode} — ${quantity} cartons`);
-    setBarcode('');
-    setBatchLot('');
-    setQuantity(1);
+    toast.success(`Scanned ${scanCode}`);
+    setBarcode(''); 
+    // We intentionally don't reset productId so they can keep scanning rapidly
     setSubmitting(false);
     load();
+  }
+
+  async function handleScan(e: React.FormEvent) {
+    e.preventDefault();
+    await submitScan(barcode);
   }
 
   return (
@@ -155,13 +126,18 @@ export default function ProductionPage() {
             <form onSubmit={handleScan} className="grid grid-cols-1 gap-4 sm:grid-cols-5">
               <div className="space-y-1.5 sm:col-span-2">
                 <Label>Barcode *</Label>
-                <Input
-                  value={barcode}
-                  onChange={(e) => setBarcode(e.target.value)}
-                  placeholder="e.g. 2BF-PROD-000041"
-                  autoFocus
-                  className="font-mono"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    value={barcode}
+                    onChange={(e) => setBarcode(e.target.value)}
+                    placeholder="e.g. 2BF-PROD-000041"
+                    autoFocus
+                    className="font-mono flex-1"
+                  />
+                  <Button type="button" variant="outline" size="icon" onClick={() => setCameraOpen(true)} title="Scan with camera">
+                    <Camera className="h-4 w-4 text-primary" />
+                  </Button>
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label>Product *</Label>
@@ -173,14 +149,6 @@ export default function ProductionPage() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Batch / Lot</Label>
-                <Input value={batchLot} onChange={(e) => setBatchLot(e.target.value)} placeholder="BATCH-..." />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Quantity</Label>
-                <Input type="number" min={1} value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} />
               </div>
               <div className="sm:col-span-5 flex justify-end">
                 <Button type="submit" disabled={submitting}>
@@ -218,8 +186,6 @@ export default function ProductionPage() {
                 <TableRow>
                   <TableHead>Barcode</TableHead>
                   <TableHead>Product</TableHead>
-                  <TableHead>Batch / Lot</TableHead>
-                  <TableHead className="text-center">Qty</TableHead>
                   <TableHead>Scanned by</TableHead>
                   <TableHead>Scanned at</TableHead>
                 </TableRow>
@@ -229,8 +195,6 @@ export default function ProductionPage() {
                   <TableRow key={s.id}>
                     <TableCell className="font-mono text-sm font-medium">{s.barcode}</TableCell>
                     <TableCell>{s.product?.name ?? '—'}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{s.batch_lot ?? '—'}</TableCell>
-                    <TableCell className="text-center">{s.quantity}</TableCell>
                     <TableCell className="text-sm">{s.scanner?.full_name ?? '—'}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{formatDate(s.scanned_at)}</TableCell>
                   </TableRow>
@@ -240,6 +204,14 @@ export default function ProductionPage() {
           )}
         </CardContent>
       </Card>
+
+      <CameraScanner
+        isOpen={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onScan={(scannedText) => {
+          submitScan(scannedText);
+        }}
+      />
     </div>
   );
 }

@@ -4,39 +4,51 @@
 
 @layer base {
   :root {
-    --background: 42 33% 98%;
-    --foreground: 22 22% 12%;
+    --background: 216 33% 97%; /* #f4f7fb - soft enterprise blue-gray */
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 22 22% 12%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 22 22% 12%;
-    --primary: 32 80% 45%;
-    --primary-foreground: 40 30% 98%;
-    --secondary: 38 25% 92%;
-    --secondary-foreground: 22 22% 18%;
-    --muted: 38 20% 94%;
-    --muted-foreground: 25 10% 42%;
-    --accent: 38 35% 88%;
-    --accent-foreground: 22 22% 18%;
-    --destructive: 0 72% 48%;
-    --destructive-foreground: 40 30% 98%;
-    --success: 142 60% 38%;
-    --success-foreground: 40 30% 98%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 22 30% 15%;
-    --border: 38 18% 86%;
-    --input: 38 18% 86%;
-    --ring: 32 80% 45%;
-    --chart-1: 32 80% 50%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 50% 44%;
-    --chart-4: 142 60% 45%;
-    --chart-5: 25 85% 55%;
-    --radius: 0.6rem;
-    --sidebar: 28 30% 16%;
-    --sidebar-foreground: 40 25% 90%;
-    --sidebar-accent: 32 70% 40%;
-    --sidebar-accent-foreground: 40 30% 98%;
+    --popover-foreground: 222 47% 11%;
+    
+    /* Semantic Colors */
+    --primary: 221 83% 53%; /* Blue */
+    --primary-foreground: 210 40% 98%;
+    --success: 142 71% 45%; /* Green */
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%; /* Amber */
+    --warning-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%; /* Red */
+    --destructive-foreground: 210 40% 98%;
+    --info: 199 89% 48%; /* Sky Blue */
+    --info-foreground: 0 0% 100%;
+    --finance: 271 91% 65%; /* Purple */
+    --finance-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222 47% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222 47% 11.2%;
+    
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221 83% 53%;
+    
+    --radius: 1rem; /* Rounded corners (16px) */
+    
+    /* Charts */
+    --chart-1: 221 83% 53%; /* Blue */
+    --chart-2: 25 95% 53%; /* Orange/Amber */
+    --chart-3: 142 71% 45%; /* Green */
+    --chart-4: 271 91% 65%; /* Purple */
+    --chart-5: 199 89% 48%; /* Sky Blue */
+    
+    --sidebar: 222 47% 11%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-accent: 217.2 32.6% 17.5%;
+    --sidebar-accent-foreground: 210 40% 98%;
   }
 
   .dark {
@@ -100,4 +112,13 @@
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground) / 0.5);
   }
+
+  .shadow-premium {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02), 0 10px 25px rgba(0, 0, 0, 0.03);
+  }
+  
+  .shadow-premium-hover {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.04), 0 15px 35px rgba(0, 0, 0, 0.05);
+  }
 }
+

@@ -5,22 +5,12 @@ import type { ReactNode } from 'react';
 import { supabase } from './supabase/client';
 import type { Profile, RoleKey } from './types';
 
-const QUICK_CREDENTIALS: Record<RoleKey, { email: string; password: string }> = {
-  admin: { email: 'admin@2bf.com.et', password: '2bf-admin-2025' },
-  production: { email: 'production@2bf.com.et', password: '2bf-prod-2025' },
-  warehouse: { email: 'warehouse1@2bf.com.et', password: '2bf-wh1-2025' },
-  dispatch: { email: 'dispatch@2bf.com.et', password: '2bf-disp-2025' },
-  sales: { email: 'sales@2bf.com.et', password: '2bf-sales-2025' },
-  accounts: { email: 'accounts@2bf.com.et', password: '2bf-acc-2025' },
-  manager: { email: 'manager@2bf.com.et', password: '2bf-mgr-2025' },
-  reports: { email: 'reports@2bf.com.et', password: '2bf-rep-2025' },
-};
+
 
 interface AuthContextValue {
   profile: Profile | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  quickSignIn: (role: RoleKey) => Promise<{ error: string | null }>;
+  quickSignIn: (email: string, password?: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -78,18 +68,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [loadProfile]);
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return { error: error.message };
-    return { error: null };
-  }, []);
 
-  const quickSignIn = useCallback(async (role: RoleKey) => {
-    const cred = QUICK_CREDENTIALS[role];
-    if (!cred) return { error: 'No credentials for this role' };
+  const quickSignIn = useCallback(async (email: string, password?: string) => {
+    if (!email || !password) return { error: 'No credentials provided' };
     const { error } = await supabase.auth.signInWithPassword({
-      email: cred.email,
-      password: cred.password,
+      email,
+      password,
     });
     if (error) return { error: error.message };
     return { error: null };
@@ -105,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadProfile]);
 
   return (
-    <AuthContext.Provider value={{ profile, loading, signIn, quickSignIn, signOut, refresh }}>
+    <AuthContext.Provider value={{ profile, loading, quickSignIn, signOut, refresh }}>
       {children}
     </AuthContext.Provider>
   );

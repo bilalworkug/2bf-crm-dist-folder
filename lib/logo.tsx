@@ -1,4 +1,5 @@
 import { cn } from './utils';
+import Image from 'next/image';
 
 interface LogoProps {
   className?: string;
@@ -9,15 +10,17 @@ interface LogoProps {
 export function Logo({ className, showText = true, variant = 'full' }: LogoProps) {
   return (
     <div className={cn('flex items-center gap-2.5', className)}>
-      <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 shadow-md ring-1 ring-amber-800/20">
-        <svg viewBox="0 0 48 48" className="h-7 w-7" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M10 36V14h6v22h-6z" fill="white" />
-          <path d="M18 36V14h5l4 13 4-13h5v22h-4V20l-4 13h-2l-4-13v16h-4z" fill="white" />
-          <circle cx="38" cy="12" r="3" fill="#fbbf24" stroke="white" strokeWidth="1.5" />
-        </svg>
+      <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-border">
+        <Image
+          src="/logo.jpg"
+          alt="Two Brothers Food Complex Logo"
+          width={64}
+          height={64}
+          className="object-contain p-0.5"
+        />
       </div>
       {showText && variant === 'full' && (
-        <div className="flex flex-col leading-none">
+        <div className="flex flex-col leading-none text-left">
           <span className="text-base font-bold tracking-tight text-foreground">
             Two Brothers
           </span>

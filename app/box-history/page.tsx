@@ -9,8 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/empty-state';
-import { Search, History, ScanLine, PackageCheck, Truck, Undo2, ShoppingCart, User, Building2, Package, Warehouse as WarehouseIcon, Clock } from 'lucide-react';
+import { Search, History, ScanLine, PackageCheck, Truck, Undo2, ShoppingCart, User, Building2, Package, Warehouse as WarehouseIcon, Clock, ArrowRightLeft, CheckCircle } from 'lucide-react';
 import { formatDate } from '@/lib/format';
+import { useAuth } from '@/lib/auth';
 
 interface TimelineEntry extends BarcodeHistoryEntry {
   warehouse?: Warehouse;
@@ -21,9 +22,20 @@ interface TimelineEntry extends BarcodeHistoryEntry {
 }
 
 const ACTION_META: Record<string, { icon: React.ComponentType<{ className?: string }>; color: string; label: string }> = {
+  PRODUCED: { icon: ScanLine, color: 'bg-amber-500 text-white', label: 'Produced' },
   production_scan: { icon: ScanLine, color: 'bg-amber-500 text-white', label: 'Production Scan' },
+  RECEIVED: { icon: PackageCheck, color: 'bg-emerald-500 text-white', label: 'Warehouse Received' },
   warehouse_receipt: { icon: PackageCheck, color: 'bg-emerald-500 text-white', label: 'Warehouse Receipt' },
+  CORRECTION: { icon: Undo2, color: 'bg-yellow-500 text-white', label: 'Correction' },
+  ALLOCATED: { icon: CheckCircle, color: 'bg-cyan-500 text-white', label: 'Allocated' },
+  TRANSFERRED: { icon: ArrowRightLeft, color: 'bg-purple-500 text-white', label: 'Transferred Out' },
+  TRANSFER_RECEIVED: { icon: PackageCheck, color: 'bg-purple-600 text-white', label: 'Transfer Received' },
+  DISPATCHED: { icon: Truck, color: 'bg-blue-500 text-white', label: 'Dispatched' },
   dispatch: { icon: Truck, color: 'bg-blue-500 text-white', label: 'Dispatch' },
+  DELIVERED: { icon: CheckCircle, color: 'bg-green-600 text-white', label: 'Delivered' },
+  DISPATCH_REVERSED: { icon: Undo2, color: 'bg-orange-500 text-white', label: 'Dispatch Reversed' },
+  RETURN_REQUESTED: { icon: Undo2, color: 'bg-red-400 text-white', label: 'Return Requested' },
+  RETURN_APPROVED: { icon: CheckCircle, color: 'bg-red-600 text-white', label: 'Return Approved' },
   return_returned: { icon: Undo2, color: 'bg-orange-500 text-white', label: 'Returned' },
   return_damaged: { icon: Undo2, color: 'bg-red-500 text-white', label: 'Damaged' },
   return_expired: { icon: Clock, color: 'bg-red-600 text-white', label: 'Expired' },
@@ -38,6 +50,8 @@ function BoxHistoryContent() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
+  const { profile } = useAuth();
+
   async function loadHistory(barcode: string) {
     if (!barcode.trim()) return;
     setLoading(true);
@@ -48,7 +62,15 @@ function BoxHistoryContent() {
       .select('*, warehouse:warehouses(*), product:products(*), user:profiles!barcode_history_user_id_fkey(*), order:orders(*), customer:customers(*)')
       .eq('barcode', barcode.trim())
       .order('performed_at', { ascending: true });
-    setEntries((data ?? []) as TimelineEntry[]);
+    
+    let filtered = (data ?? []) as TimelineEntry[];
+    if (profile?.role === 'warehouse' && profile.warehouse_id) {
+        filtered = filtered.filter(e => e.warehouse_id === profile.warehouse_id);
+    } else if (profile?.role === 'sales') {
+        filtered = filtered.filter(e => ['ALLOCATED', 'DISPATCHED', 'DELIVERED', 'RETURN_REQUESTED'].includes(e.action));
+    }
+    
+    setEntries(filtered);
     setLoading(false);
   }
 

@@ -1,10 +1,16 @@
 export type RoleKey =
   | 'admin'
   | 'production'
+  | 'production_manager'
   | 'warehouse'
+  | 'warehouse_manager'
   | 'dispatch'
+  | 'dispatch_manager'
   | 'sales'
+  | 'sales_manager'
   | 'accounts'
+  | 'accounts_manager'
+  | 'returns_manager'
   | 'manager'
   | 'reports';
 
@@ -17,21 +23,33 @@ export interface RoleInfo {
 export const ROLES: RoleInfo[] = [
   { key: 'admin', name: 'Admin', description: 'Full system access: users, settings, all reports and logs' },
   { key: 'production', name: 'Production User', description: 'Scans finished product boxes and registers produced stock' },
+  { key: 'production_manager', name: 'Production Manager', description: 'Manages production and corrections' },
   { key: 'warehouse', name: 'Warehouse User', description: 'Receives approved barcodes into assigned warehouse' },
+  { key: 'warehouse_manager', name: 'Warehouse Manager', description: 'Manages warehouse and corrections' },
   { key: 'dispatch', name: 'Dispatch User', description: 'Dispatches stock out of warehouse linked to customer orders' },
+  { key: 'dispatch_manager', name: 'Dispatch Manager', description: 'Manages dispatch and corrections' },
   { key: 'sales', name: 'Sales Person', description: 'Creates customers and orders, views customer history' },
+  { key: 'sales_manager', name: 'Sales Manager', description: 'Manages sales, approves discounts' },
   { key: 'accounts', name: 'Accounts User', description: 'Tracks invoices, payments, balances' },
-  { key: 'manager', name: 'Supervisor / Manager', description: 'Approves actions, reviews performance and exceptions' },
+  { key: 'accounts_manager', name: 'Accounts Manager', description: 'Manages accounts and corrections' },
+  { key: 'returns_manager', name: 'Returns Manager', description: 'Manages returns and corrections' },
+  { key: 'manager', name: 'Supervisor / Manager', description: 'Approves actions, reviews performance and exceptions (Legacy)' },
   { key: 'reports', name: 'Full Reports User', description: 'Read-only access to all reports and audit logs' },
 ];
 
 export const ROLE_LABELS: Record<RoleKey, string> = {
   admin: 'Admin',
   production: 'Production',
+  production_manager: 'Production Manager',
   warehouse: 'Warehouse',
+  warehouse_manager: 'Warehouse Manager',
   dispatch: 'Dispatch',
+  dispatch_manager: 'Dispatch Manager',
   sales: 'Sales',
+  sales_manager: 'Sales Manager',
   accounts: 'Accounts',
+  accounts_manager: 'Accounts Manager',
+  returns_manager: 'Returns Manager',
   manager: 'Manager',
   reports: 'Reports',
 };
@@ -225,6 +243,8 @@ export const ORDER_STATUSES = [
   'pending',
   'approved',
   'dispatched',
+  'delivered',
+  'partially_delivered',
   'completed',
   'cancelled',
 ] as const;

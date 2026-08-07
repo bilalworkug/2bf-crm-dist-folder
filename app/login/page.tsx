@@ -1,164 +1,221 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
-import type { RoleKey } from '@/lib/types';
 import { Logo } from '@/lib/logo';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { toast } from 'sonner';
-import { Loader2, Factory, ShieldCheck, ScanLine, BarChart3 } from 'lucide-react';
+import { Loader2, Shield, Factory, Package, Truck, BarChart3, Users, LayoutDashboard, Calculator, Eye, EyeOff } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
-const DEMO_ACCOUNTS: { role: string; email: string; password: string }[] = [
-  { role: 'Admin', email: 'admin@2bf.com.et', password: '2bf-admin-2025' },
-  { role: 'Production', email: 'production@2bf.com.et', password: '2bf-prod-2025' },
-  { role: 'Warehouse 1', email: 'warehouse1@2bf.com.et', password: '2bf-wh1-2025' },
-  { role: 'Warehouse 2', email: 'warehouse2@2bf.com.et', password: '2bf-wh2-2025' },
-  { role: 'Warehouse 3', email: 'warehouse3@2bf.com.et', password: '2bf-wh3-2025' },
-  { role: 'Dispatch', email: 'dispatch@2bf.com.et', password: '2bf-disp-2025' },
-  { role: 'Sales', email: 'sales@2bf.com.et', password: '2bf-sales-2025' },
-  { role: 'Accounts', email: 'accounts@2bf.com.et', password: '2bf-acc-2025' },
-  { role: 'Manager', email: 'manager@2bf.com.et', password: '2bf-mgr-2025' },
-  { role: 'Reports', email: 'reports@2bf.com.et', password: '2bf-rep-2025' },
+const DEMO_USERS = [
+  { id: 'admin', name: 'Admin', email: 'admin@2bf.com.et', password: 'Password123!', role: 'admin', icon: Shield },
+  { id: 'prod1', name: 'Production User 1', email: 'production1@2bf.com.et', password: 'Password123!', role: 'production', icon: Factory },
+  { id: 'prod2', name: 'Production User 2', email: 'production2@2bf.com.et', password: 'Password123!', role: 'production', icon: Factory },
+  { id: 'prod_mgr', name: 'Production Manager', email: 'production_manager@2bf.com.et', password: 'Password123!', role: 'production_manager', icon: LayoutDashboard },
+  { id: 'wh1', name: 'Warehouse User 1', email: 'warehouse1@2bf.com.et', password: 'Password123!', role: 'warehouse', icon: Package },
+  { id: 'wh2', name: 'Warehouse User 2', email: 'warehouse2@2bf.com.et', password: 'Password123!', role: 'warehouse', icon: Package },
+  { id: 'wh_mgr', name: 'Warehouse Manager', email: 'warehouse_manager@2bf.com.et', password: 'Password123!', role: 'warehouse_manager', icon: LayoutDashboard },
+  { id: 'sales', name: 'Sales User', email: 'sales@2bf.com.et', password: 'Password123!', role: 'sales', icon: Users },
+  { id: 'sales_mgr', name: 'Sales Manager', email: 'sales_manager@2bf.com.et', password: 'Password123!', role: 'sales_manager', icon: LayoutDashboard },
+  { id: 'dispatch', name: 'Dispatch User', email: 'dispatch@2bf.com.et', password: 'Password123!', role: 'dispatch', icon: Truck },
+  { id: 'dispatch_mgr', name: 'Dispatch Manager', email: 'dispatch_manager@2bf.com.et', password: 'Password123!', role: 'dispatch_manager', icon: LayoutDashboard },
+  { id: 'accounts', name: 'Accounts User', email: 'accounts@2bf.com.et', password: 'Password123!', role: 'accounts', icon: Calculator },
+  { id: 'returns_mgr', name: 'Returns Manager', email: 'returns_manager@2bf.com.et', password: 'Password123!', role: 'returns_manager', icon: LayoutDashboard },
+  { id: 'reports', name: 'Reports User', email: 'reports@2bf.com.et', password: 'Password123!', role: 'reports', icon: BarChart3 },
 ];
 
 export default function LoginPage() {
-  const { profile, loading, signIn } = useAuth();
+  const { profile, loading, quickSignIn } = useAuth();
   const router = useRouter();
+
+  // Email/password form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+
+  // Quick login state
+  const [submittingId, setSubmittingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && profile) router.replace('/dashboard');
   }, [profile, loading, router]);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleEmailLogin(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitting(true);
-    const { error } = await signIn(email, password);
-    setSubmitting(false);
-    if (error) {
-      toast.error(error);
-    } else {
-      toast.success('Welcome back');
-      router.replace('/dashboard');
+    if (!email || !password) return;
+    try {
+      setIsSigningIn(true);
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        throw new Error('Missing Supabase configuration. Please restart the server.');
+      }
+      const { error } = await quickSignIn(email, password);
+      if (error) {
+        toast.error(error);
+      } else {
+        toast.success('Welcome back!');
+        router.replace('/dashboard');
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setIsSigningIn(false);
     }
   }
 
-  function fillCredentials(acc: { email: string; password: string }) {
-    setEmail(acc.email);
-    setPassword(acc.password);
+  async function handleQuickLogin(acc: typeof DEMO_USERS[0]) {
+    try {
+      setSubmittingId(acc.id);
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        throw new Error('Missing Supabase configuration. Please restart the server.');
+      }
+      const { error } = await quickSignIn(acc.email, acc.password);
+      if (error) {
+        toast.error(error);
+      } else {
+        toast.success(`Welcome back, ${acc.name}`);
+        router.replace('/dashboard');
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSubmittingId(null);
+    }
   }
 
+  const anyLoading = isSigningIn || submittingId !== null;
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background">
+    <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-background p-6">
       <div className="absolute right-4 top-4 z-10">
         <ThemeToggle />
       </div>
 
-      <div className="grid min-h-screen lg:grid-cols-2">
-        {/* Left brand panel */}
-        <div className="relative hidden flex-col justify-between bg-sidebar p-12 text-sidebar-foreground lg:flex">
-          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 30%, hsl(32 80% 50%) 0, transparent 40%), radial-gradient(circle at 80% 70%, hsl(38 90% 50%) 0, transparent 35%)' }} />
-          <div className="relative">
-            <Logo className="[&_span:first-child]:text-sidebar-foreground [&_.text-amber-600]:text-amber-400" />
+      <div className="w-full max-w-6xl space-y-10 z-10">
+        {/* Header */}
+        <div className="flex flex-col items-center text-center space-y-4">
+          <div className="scale-125">
+            <Logo />
           </div>
-          <div className="relative space-y-6">
-            <h2 className="text-3xl font-bold leading-tight">
-              From production line to customer hand —<br />trace every box.
-            </h2>
-            <p className="max-w-md text-sidebar-foreground/70">
-              The complete factory operations system for Two Brothers Food Complex:
-              production scanning, warehouse receiving, dispatch, sales, and full barcode traceability.
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight">Two Brothers CRM</h1>
+            <p className="text-muted-foreground max-w-lg mx-auto text-sm">
+              Sign in with your email and password, or use quick demo access below.
             </p>
-            <div className="grid max-w-md grid-cols-1 gap-3 pt-4">
-              {[
-                { icon: ScanLine, label: 'Production scanning with duplicate detection' },
-                { icon: ShieldCheck, label: 'Role-based access across 8 roles' },
-                { icon: BarChart3, label: 'Real-time reports and audit logs' },
-              ].map((f) => (
-                <div key={f.label} className="flex items-center gap-3 text-sm text-sidebar-foreground/80">
-                  <f.icon className="h-5 w-5 text-amber-400" />
-                  <span>{f.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="relative flex items-center gap-2 text-sm text-sidebar-foreground/50">
-            <Factory className="h-4 w-4" />
-            <span>Two Brothers Food Complex P.L.C — Factory System</span>
           </div>
         </div>
 
-        {/* Right login form + quick login */}
-        <div className="flex items-center justify-center p-6 lg:p-12">
-          <div className="w-full max-w-sm">
-            <div className="mb-8 lg:hidden">
-              <Logo />
-            </div>
-            <div className="mb-8">
-              <h1 className="text-2xl font-bold tracking-tight">Sign in to your account</h1>
-              <p className="mt-1.5 text-sm text-muted-foreground">
-                Enter your credentials or use a quick login below.
-              </p>
-            </div>
+        {/* Email / Password login form */}
+        <div className="flex justify-center">
+          <Card className="w-full max-w-sm shadow-lg border-muted">
+            <CardHeader>
+              <CardTitle>Sign In</CardTitle>
+              <CardDescription>Enter your credentials to access the system.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleEmailLogin} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="email">Email address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    placeholder="you@2bf.com.et"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={anyLoading}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="password">Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
+                      required
+                      placeholder="Your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      disabled={anyLoading}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                <Button type="submit" className="w-full" disabled={anyLoading}>
+                  {isSigningIn ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Signing in…
+                    </>
+                  ) : (
+                    'Sign in'
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="email">Email address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@2bf.com.et"
-                  autoComplete="email"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="text"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Your password"
-                  autoComplete="current-password"
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={submitting}>
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Sign in
-              </Button>
-            </form>
+        {/* Divider */}
+        <div className="flex items-center gap-4 max-w-sm mx-auto">
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-xs text-muted-foreground uppercase tracking-wide">or quick access</span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
 
-            <div className="mt-8 rounded-lg border bg-muted/40 p-4">
-              <p className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Quick login — click to fill credentials
-              </p>
-              <div className="grid grid-cols-2 gap-1.5">
-                {DEMO_ACCOUNTS.map((acc) => (
-                  <button
-                    key={acc.email}
-                    type="button"
-                    onClick={() => fillCredentials(acc)}
-                    className="rounded-md border bg-card px-2.5 py-2 text-left text-xs transition-colors hover:border-primary/40 hover:bg-accent"
-                  >
-                    <span className="block font-medium text-foreground">{acc.role}</span>
-                    <span className="block font-mono text-[10px] text-muted-foreground">{acc.password}</span>
-                  </button>
-                ))}
+        {/* Quick demo login cards */}
+        <div className="flex justify-center">
+          <Card className="w-full max-w-4xl shadow-lg border-muted">
+            <CardHeader>
+              <CardTitle>Quick Demo Access</CardTitle>
+              <CardDescription>Select a role to instantly log in with demo credentials.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                {DEMO_USERS.map((acc) => {
+                  const Icon = acc.icon;
+                  const isSubmitting = submittingId === acc.id;
+                  return (
+                    <button
+                      key={acc.id}
+                      onClick={() => handleQuickLogin(acc)}
+                      disabled={anyLoading}
+                      className="group relative flex flex-col items-center gap-3 rounded-xl border bg-card p-4 text-center transition-all hover:border-primary hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <div className="rounded-full bg-primary/10 p-3 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                        {isSubmitting ? (
+                          <Loader2 className="h-6 w-6 animate-spin" />
+                        ) : (
+                          <Icon className="h-6 w-6" />
+                        )}
+                      </div>
+                      <span className="block text-sm font-semibold text-foreground">{acc.name}</span>
+                    </button>
+                  );
+                })}
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
+
+      {/* Background decorations */}
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-grid-slate-200/20 [mask-image:linear-gradient(to_bottom,white,transparent)] dark:bg-grid-slate-800/20" />
     </div>
   );
 }
