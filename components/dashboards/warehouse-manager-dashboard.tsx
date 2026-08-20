@@ -121,22 +121,22 @@ export function WarehouseManagerDashboard() {
           {/* ════ 4 KPI CARDS ════ */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <DashboardKPI
-              kpi={{ value: data.totalInStock.toLocaleString(), label: 'Total Stock', description: 'Available in warehouses' }}
+              kpi={{ value: `${data.totalInStock.toLocaleString()} units`, label: 'Available Product Quantity', description: 'Available in warehouses' }}
               icon={<Package className="w-5 h-5 text-indigo-600" />}
               iconBgClass="bg-indigo-100 border-transparent text-indigo-600"
             />
             <DashboardKPI
-              kpi={{ value: totalReceived.toLocaleString(), label: 'Received Today', description: 'Across all warehouses' }}
+              kpi={{ value: `${totalReceived.toLocaleString()} units`, label: 'Received Quantity Today', description: 'Across all warehouses' }}
               icon={<ArrowDownToLine className="w-5 h-5 text-emerald-600" />}
               iconBgClass="bg-emerald-100 border-transparent text-emerald-600"
             />
             <DashboardKPI
-              kpi={{ value: totalOut.toLocaleString(), label: 'Dispatched Today', description: 'Across all warehouses' }}
+              kpi={{ value: `${totalOut.toLocaleString()} units`, label: 'Dispatched Quantity Today', description: 'Across all warehouses' }}
               icon={<ArrowUpFromLine className="w-5 h-5 text-purple-600" />}
               iconBgClass="bg-purple-100 border-transparent text-purple-600"
             />
             <DashboardKPI
-              kpi={{ value: '0', label: 'Corrections', description: 'Pending manager review', status: 'warning' }}
+              kpi={{ value: '0 records', label: 'Correction Records', description: 'Pending manager review', status: 'warning' }}
               icon={<Settings className="w-5 h-5 text-amber-600" />}
               iconBgClass="bg-amber-100 border-transparent text-amber-600"
             />

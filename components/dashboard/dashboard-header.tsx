@@ -13,6 +13,8 @@ interface DashboardHeaderProps {
   onExportExcel: () => Promise<void> | void;
 }
 
+import { NotificationsPopover } from '@/components/dashboard/notifications-popover';
+
 export function DashboardHeader({ userName, userRole, onRefresh, onExportPDF, onExportExcel }: DashboardHeaderProps) {
   
   const handlePDF = async () => {
@@ -58,6 +60,7 @@ export function DashboardHeader({ userName, userRole, onRefresh, onExportPDF, on
       </div>
       
       <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+        <NotificationsPopover />
         <Button variant="outline" onClick={onRefresh} className="h-10 px-4 bg-white dark:bg-slate-900 shadow-sm">
           <RefreshCcw className="mr-2 h-4 w-4" />
           Refresh

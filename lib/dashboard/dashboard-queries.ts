@@ -56,7 +56,7 @@ export async function fetchDashboardData(
   if (shouldFetchProduction) {
     let q = supabase
       .from('production_scans')
-      .select('id, product_id, status, barcode, created_at, created_by')
+      .select('id, product_id, status, barcode, quantity, created_at, created_by')
       .gte('created_at', startStr)
       .lte('created_at', endStr);
     if (filters.product) q = q.eq('product_id', filters.product);
@@ -183,7 +183,7 @@ export async function fetchDashboardData(
 
   // ─── Aggregate Product Performance ───
   const productPerformance: ProductPerformanceRow[] = products.map((p: any) => {
-    const produced = productionScans.filter((s: any) => s.product_id === p.id && s.status === 'produced').length;
+    const produced = productionScans.filter((s: any) => s.product_id === p.id).reduce((sum: number, s: any) => sum + (s.quantity || 1), 0);
     const inStock = receipts.filter((r: any) => r.product_id === p.id).reduce((sum: number, r: any) => sum + (r.quantity || 0), 0)
       - dispatches.filter((d: any) => d.product_id === p.id).reduce((sum: number, d: any) => sum + (d.quantity || 0), 0);
     const allocated = 0; // Allocation is part of order processing, placeholder

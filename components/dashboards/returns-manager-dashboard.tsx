@@ -117,22 +117,22 @@ export function ReturnsManagerDashboard() {
           {/* ════ 4 KPI CARDS ════ */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <DashboardKPI
-              kpi={{ value: data.totalReturned.toLocaleString(), label: 'Total Returns', description: 'For this period' }}
+              kpi={{ value: `${data.totalReturned.toLocaleString()} units`, label: 'Returned Quantity', description: 'For this period' }}
               icon={<RotateCcw className="w-5 h-5 text-indigo-600" />}
               iconBgClass="bg-indigo-100 border-transparent text-indigo-600"
             />
             <DashboardKPI
-              kpi={{ value: '0', label: 'Pending Approval', description: 'Awaiting your decision', status: 'warning' }}
+              kpi={{ value: '0 returns', label: 'Pending Approval', description: 'Awaiting your decision', status: 'warning' }}
               icon={<AlertTriangle className="w-5 h-5 text-amber-600" />}
               iconBgClass="bg-amber-100 border-transparent text-amber-600"
             />
             <DashboardKPI
-              kpi={{ value: '0', label: 'Approved', description: 'Ready to receive back' }}
+              kpi={{ value: '0 returns', label: 'Approved Returns', description: 'Ready to receive back' }}
               icon={<CheckCircle className="w-5 h-5 text-emerald-600" />}
               iconBgClass="bg-emerald-100 border-transparent text-emerald-600"
             />
             <DashboardKPI
-              kpi={{ value: '0', label: 'Damaged / Expired', description: 'Flagged stock', status: 'critical' }}
+              kpi={{ value: '0 units', label: 'Damaged / Expired Quantity', description: 'Flagged stock', status: 'critical' }}
               icon={<FileWarning className="w-5 h-5 text-rose-600" />}
               iconBgClass="bg-rose-100 border-transparent text-rose-600"
             />

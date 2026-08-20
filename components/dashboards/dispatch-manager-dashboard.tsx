@@ -118,22 +118,22 @@ export function DispatchManagerDashboard() {
           {/* ════ 4 KPI CARDS ════ */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <DashboardKPI
-              kpi={{ value: data.pendingOrders.toLocaleString(), label: 'Orders Pending', description: 'Awaiting dispatch', status: data.pendingOrders > 0 ? 'warning' : 'neutral' }}
+              kpi={{ value: `${data.pendingOrders.toLocaleString()} orders`, label: 'Orders Pending Dispatch', description: 'Awaiting dispatch', status: data.pendingOrders > 0 ? 'warning' : 'neutral' }}
               icon={<Package className="w-5 h-5 text-indigo-600" />}
               iconBgClass="bg-indigo-100 border-transparent text-indigo-600"
             />
             <DashboardKPI
-              kpi={{ value: data.totalInStock.toLocaleString(), label: 'Available Stock', description: 'Ready to dispatch' }}
+              kpi={{ value: `${data.totalInStock.toLocaleString()} units`, label: 'Available Product Quantity', description: 'Ready to dispatch' }}
               icon={<PackageCheck className="w-5 h-5 text-emerald-600" />}
               iconBgClass="bg-emerald-100 border-transparent text-emerald-600"
             />
             <DashboardKPI
-              kpi={{ value: data.totalDispatched.toLocaleString(), label: 'Dispatched', description: 'For this period' }}
+              kpi={{ value: `${data.totalDispatched.toLocaleString()} units`, label: 'Dispatched Quantity', description: 'For this period' }}
               icon={<Truck className="w-5 h-5 text-blue-600" />}
               iconBgClass="bg-blue-100 border-transparent text-blue-600"
             />
             <DashboardKPI
-              kpi={{ value: '0', label: 'Corrections', description: 'Pending manager review', status: 'warning' }}
+              kpi={{ value: '0 records', label: 'Correction Records', description: 'Pending manager review', status: 'warning' }}
               icon={<Settings className="w-5 h-5 text-amber-600" />}
               iconBgClass="bg-amber-100 border-transparent text-amber-600"
             />

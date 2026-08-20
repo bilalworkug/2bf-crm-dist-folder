@@ -166,42 +166,42 @@ export function AdminDashboard() {
           {/* ════ 8 KPI CARDS ════ */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <DashboardKPI 
-              kpi={{ value: data.products.length, label: 'Total Products', description: 'Active items in system' }} 
+              kpi={{ value: data.products.length, label: 'Product Types', description: 'Unique SKUs in system' }} 
               icon={<Box className="w-5 h-5 text-blue-600" />} 
               iconBgClass="bg-blue-100 border-transparent text-blue-600"
             />
             <DashboardKPI 
-              kpi={{ value: data.totalInStock.toLocaleString(), label: 'Available Stock (All)', description: 'Total across all warehouses' }} 
+              kpi={{ value: `${data.totalInStock.toLocaleString()} units`, label: 'Available Product Quantity', description: 'Physical units across all warehouses' }} 
               icon={<LayoutDashboard className="w-5 h-5 text-emerald-600" />} 
               iconBgClass="bg-emerald-100 border-transparent text-emerald-600"
             />
             <DashboardKPI 
-              kpi={{ value: data.totalOrders, label: 'Orders (All)', description: 'Total orders placed' }} 
+              kpi={{ value: `${data.totalOrders} orders`, label: 'Total Orders', description: 'Number of order records' }} 
               icon={<ShoppingCart className="w-5 h-5 text-purple-600" />} 
               iconBgClass="bg-purple-100 border-transparent text-purple-600"
             />
             <DashboardKPI 
-              kpi={{ value: data.totalDispatched, label: 'Dispatched (Today)', description: 'Boxes shipped' }} 
+              kpi={{ value: `${data.totalDispatched.toLocaleString()} units`, label: 'Dispatched Quantity (Today)', description: 'Physical units shipped' }} 
               icon={<ShoppingCart className="w-5 h-5 text-amber-600" />} 
               iconBgClass="bg-amber-100 border-transparent text-amber-600"
             />
             <DashboardKPI 
-              kpi={{ value: data.totalDelivered, label: 'Delivered (Today)', description: 'Confirmed deliveries' }} 
+              kpi={{ value: `${data.totalDelivered.toLocaleString()} units`, label: 'Delivered Quantity (Today)', description: 'Physical units delivered' }} 
               icon={<PackageCheck className="w-5 h-5 text-teal-600" />} 
               iconBgClass="bg-teal-100 border-transparent text-teal-600"
             />
             <DashboardKPI 
-              kpi={{ value: data.totalReturned, label: 'Returns (Today)', description: 'Boxes returned' }} 
+              kpi={{ value: `${data.totalReturned.toLocaleString()} units`, label: 'Returned Quantity (Today)', description: 'Physical units returned' }} 
               icon={<RefreshCcw className="w-5 h-5 text-rose-600" />} 
               iconBgClass="bg-rose-100 border-transparent text-rose-600"
             />
             <DashboardKPI 
-              kpi={{ value: data.totalCustomers, label: 'Customers', description: 'Active customer accounts' }} 
+              kpi={{ value: `${data.totalCustomers} customers`, label: 'Active Customers', description: 'Customer accounts' }} 
               icon={<Users className="w-5 h-5 text-amber-500" />} 
               iconBgClass="bg-amber-100 border-transparent text-amber-500"
             />
             <DashboardKPI 
-              kpi={{ value: formatMoney(data.outstandingAmount), label: 'Outstanding Receivable', description: `From ${data.ordersList.filter(o => o.payment_type === 'credit' && ((o.total_amount||0)-(o.paid_amount||0))>0).length} credit orders` }} 
+              kpi={{ value: formatMoney(data.outstandingAmount), label: 'Outstanding Amount', description: `From ${data.ordersList.filter(o => o.payment_type === 'credit' && ((o.total_amount||0)-(o.paid_amount||0))>0).length} credit orders` }} 
               icon={<CreditCard className="w-5 h-5 text-blue-600" />} 
               iconBgClass="bg-blue-100 border-transparent text-blue-600"
             />
@@ -343,7 +343,7 @@ export function AdminDashboard() {
                           <span className="w-5 h-5 shrink-0 rounded-md bg-slate-100 text-slate-500 text-[10px] font-bold flex items-center justify-center">{i+1}</span>
                           <span className="text-sm text-slate-700 truncate">{p.productName}</span>
                         </div>
-                        <span className="text-sm font-semibold text-slate-700 whitespace-nowrap ml-2">{p.dispatched} units</span>
+                        <span className="text-sm font-semibold text-slate-700 whitespace-nowrap ml-2">{p.dispatched} units dispatched</span>
                       </li>
                     ))}
                   </ul>
@@ -386,9 +386,9 @@ export function AdminDashboard() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-md bg-blue-50 text-blue-500 flex items-center justify-center"><CreditCard className="w-4 h-4" /></div>
-                      <span className="text-sm font-medium text-slate-700">Total Transactions</span>
+                      <span className="text-sm font-medium text-slate-700">Total Orders</span>
                     </div>
-                    <span className="text-sm font-bold text-slate-900">{data.totalOrders}</span>
+                    <span className="text-sm font-bold text-slate-900">{data.totalOrders} orders</span>
                   </div>
                 </div>
                 <div className="pt-4 border-t border-slate-100 text-center mt-4">

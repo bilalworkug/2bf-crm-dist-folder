@@ -117,22 +117,22 @@ export function SalesManagerDashboard() {
           {/* ════ 4 KPI CARDS ════ */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <DashboardKPI
-              kpi={{ value: data.totalOrders.toLocaleString(), label: 'Total Orders', description: 'For selected period' }}
+              kpi={{ value: `${data.totalOrders.toLocaleString()} orders`, label: 'Total Orders', description: 'For selected period' }}
               icon={<ShoppingCart className="w-5 h-5 text-blue-600" />}
               iconBgClass="bg-blue-100 border-transparent text-blue-600"
             />
             <DashboardKPI
-              kpi={{ value: data.pendingOrders.toLocaleString(), label: 'Pending Approval', description: 'Awaiting review', status: data.pendingOrders > 0 ? 'warning' : 'neutral' }}
+              kpi={{ value: `${data.pendingOrders.toLocaleString()} orders`, label: 'Pending Approval', description: 'Awaiting review', status: data.pendingOrders > 0 ? 'warning' : 'neutral' }}
               icon={<ShoppingCart className="w-5 h-5 text-amber-600" />}
               iconBgClass="bg-amber-100 border-transparent text-amber-600"
             />
             <DashboardKPI
-              kpi={{ value: data.totalCustomers.toLocaleString(), label: 'Total Customers', description: 'Active accounts' }}
+              kpi={{ value: `${data.totalCustomers.toLocaleString()} customers`, label: 'Total Customers', description: 'Active accounts' }}
               icon={<Users className="w-5 h-5 text-indigo-600" />}
               iconBgClass="bg-indigo-100 border-transparent text-indigo-600"
             />
             <DashboardKPI
-              kpi={{ value: data.totalInStock.toLocaleString(), label: 'Available Inventory', description: 'Boxes ready to sell' }}
+              kpi={{ value: `${data.totalInStock.toLocaleString()} units`, label: 'Available Product Quantity', description: 'Units ready to sell' }}
               icon={<Package className="w-5 h-5 text-emerald-600" />}
               iconBgClass="bg-emerald-100 border-transparent text-emerald-600"
             />

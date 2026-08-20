@@ -119,22 +119,22 @@ export function DispatchDashboard() {
           {/* ════ 4 KPI CARDS ════ */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <DashboardKPI
-              kpi={{ value: data.pendingOrders.toLocaleString(), label: 'Orders Ready', description: 'Pending dispatch', status: data.pendingOrders > 0 ? 'warning' : 'neutral' }}
+              kpi={{ value: `${data.pendingOrders.toLocaleString()} orders`, label: 'Orders Ready for Dispatch', description: 'Pending dispatch', status: data.pendingOrders > 0 ? 'warning' : 'neutral' }}
               icon={<Package className="w-5 h-5 text-indigo-600" />}
               iconBgClass="bg-indigo-100 border-transparent text-indigo-600"
             />
             <DashboardKPI
-              kpi={{ value: data.totalInStock.toLocaleString(), label: 'Stock Available', description: 'Boxes ready to dispatch' }}
+              kpi={{ value: `${data.totalInStock.toLocaleString()} units`, label: 'Available Product Quantity', description: 'Units ready to dispatch' }}
               icon={<PackageCheck className="w-5 h-5 text-emerald-600" />}
               iconBgClass="bg-emerald-100 border-transparent text-emerald-600"
             />
             <DashboardKPI
-              kpi={{ value: data.totalDispatched.toLocaleString(), label: 'Dispatched Today', description: 'Total boxes dispatched' }}
+              kpi={{ value: `${data.totalDispatched.toLocaleString()} units`, label: 'Dispatched Quantity Today', description: 'Total units dispatched' }}
               icon={<Truck className="w-5 h-5 text-blue-600" />}
               iconBgClass="bg-blue-100 border-transparent text-blue-600"
             />
             <DashboardKPI
-              kpi={{ value: '0', label: 'Exceptions', description: 'Failed or reversed dispatches' }}
+              kpi={{ value: '0 records', label: 'Exception Records', description: 'Failed or reversed dispatches' }}
               icon={<AlertTriangle className="w-5 h-5 text-rose-600" />}
               iconBgClass="bg-rose-100 border-transparent text-rose-600"
             />

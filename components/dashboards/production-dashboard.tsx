@@ -128,22 +128,22 @@ export function ProductionDashboard() {
           {/* ════ 4 KPI CARDS ════ */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <DashboardKPI
-              kpi={{ value: data.totalProduced.toLocaleString(), label: 'Boxes Produced', description: 'Successfully scanned' }}
+              kpi={{ value: `${data.totalProduced.toLocaleString()} units`, label: 'Produced Quantity', description: 'Successfully scanned' }}
               icon={<Factory className="w-5 h-5 text-emerald-600" />}
               iconBgClass="bg-emerald-100 border-transparent text-emerald-600"
             />
             <DashboardKPI
-              kpi={{ value: data.products.length, label: 'Active Products', description: 'Products in system' }}
+              kpi={{ value: `${data.products.length} types`, label: 'Product Types', description: 'Products in system' }}
               icon={<Target className="w-5 h-5 text-blue-600" />}
               iconBgClass="bg-blue-100 border-transparent text-blue-600"
             />
             <DashboardKPI
-              kpi={{ value: data.totalInStock.toLocaleString(), label: 'Total In Stock', description: 'Across all warehouses' }}
+              kpi={{ value: `${data.totalInStock.toLocaleString()} units`, label: 'Available Product Quantity', description: 'Across all warehouses' }}
               icon={<ScanLine className="w-5 h-5 text-purple-600" />}
               iconBgClass="bg-purple-100 border-transparent text-purple-600"
             />
             <DashboardKPI
-              kpi={{ value: data.totalDispatched.toLocaleString(), label: 'Dispatched', description: 'Boxes shipped out' }}
+              kpi={{ value: `${data.totalDispatched.toLocaleString()} units`, label: 'Dispatched Quantity', description: 'Units shipped out' }}
               icon={<Camera className="w-5 h-5 text-amber-600" />}
               iconBgClass="bg-amber-100 border-transparent text-amber-600"
             />

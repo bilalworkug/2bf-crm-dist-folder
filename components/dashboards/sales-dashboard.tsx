@@ -134,22 +134,22 @@ export function SalesDashboard() {
           {/* ════ 4 KPI CARDS ════ */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <DashboardKPI
-              kpi={{ value: data.totalOrders, label: 'Orders Placed', description: 'For selected period' }}
+              kpi={{ value: `${data.totalOrders} orders`, label: 'Total Orders', description: 'For selected period' }}
               icon={<ShoppingCart className="w-5 h-5 text-blue-600" />}
               iconBgClass="bg-blue-100 border-transparent text-blue-600"
             />
             <DashboardKPI
-              kpi={{ value: data.pendingOrders, label: 'Pending Orders', description: 'Awaiting approval', status: data.pendingOrders > 0 ? 'warning' : 'neutral' }}
+              kpi={{ value: `${data.pendingOrders} orders`, label: 'Pending Orders', description: 'Awaiting approval', status: data.pendingOrders > 0 ? 'warning' : 'neutral' }}
               icon={<ShoppingCart className="w-5 h-5 text-amber-600" />}
               iconBgClass="bg-amber-100 border-transparent text-amber-600"
             />
             <DashboardKPI
-              kpi={{ value: data.totalCustomers, label: 'Customers', description: 'Active customer accounts' }}
+              kpi={{ value: `${data.totalCustomers} customers`, label: 'Active Customers', description: 'Customer accounts' }}
               icon={<Users className="w-5 h-5 text-indigo-600" />}
               iconBgClass="bg-indigo-100 border-transparent text-indigo-600"
             />
             <DashboardKPI
-              kpi={{ value: data.totalInStock.toLocaleString(), label: 'Available Inventory', description: 'Boxes ready to sell' }}
+              kpi={{ value: `${data.totalInStock.toLocaleString()} units`, label: 'Available Product Quantity', description: 'Units ready to sell' }}
               icon={<Package className="w-5 h-5 text-emerald-600" />}
               iconBgClass="bg-emerald-100 border-transparent text-emerald-600"
             />

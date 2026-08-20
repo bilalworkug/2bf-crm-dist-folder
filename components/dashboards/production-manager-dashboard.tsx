@@ -118,24 +118,24 @@ export function ProductionManagerDashboard() {
           {/* ════ 4 KPI CARDS ════ */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <DashboardKPI
-              kpi={{ value: data.totalProduced.toLocaleString(), label: 'Boxes Produced', description: 'Successfully scanned' }}
+              kpi={{ value: `${data.totalProduced.toLocaleString()} units`, label: 'Produced Quantity', description: 'Successfully scanned' }}
               icon={<Factory className="w-5 h-5 text-emerald-600" />}
               iconBgClass="bg-emerald-100 border-transparent text-emerald-600"
             />
             <DashboardKPI
-              kpi={{ value: data.products.length, label: 'Active Products', description: 'Products in system' }}
+              kpi={{ value: `${data.products.length} types`, label: 'Product Types', description: 'Products in system' }}
               icon={<Target className="w-5 h-5 text-blue-600" />}
               iconBgClass="bg-blue-100 border-transparent text-blue-600"
             />
             <DashboardKPI
-              kpi={{ value: '0', label: 'Duplicate Scans', description: 'Flagged duplicates', status: 'warning' }}
-              icon={<AlertTriangle className="w-5 h-5 text-amber-600" />}
-              iconBgClass="bg-amber-100 border-transparent text-amber-600"
+              kpi={{ value: `${(data as any).totalInStock?.toLocaleString() || 0} units`, label: 'Available Product Quantity', description: 'Across all warehouses' }}
+              icon={<ScanLine className="w-5 h-5 text-purple-600" />}
+              iconBgClass="bg-purple-100 border-transparent text-purple-600"
             />
             <DashboardKPI
-              kpi={{ value: '0', label: 'Corrections Pending', description: 'Awaiting manager approval', status: 'critical' }}
-              icon={<Settings className="w-5 h-5 text-rose-600" />}
-              iconBgClass="bg-rose-100 border-transparent text-rose-600"
+              kpi={{ value: '0 records', label: 'Correction Records', description: 'Pending manager review', status: 'warning' }}
+              icon={<AlertTriangle className="w-5 h-5 text-amber-600" />}
+              iconBgClass="bg-amber-100 border-transparent text-amber-600"
             />
           </div>
 

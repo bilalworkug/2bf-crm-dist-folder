@@ -143,7 +143,7 @@ export function AccountsDashboard() {
               iconBgClass="bg-rose-100 border-transparent text-rose-600"
             />
             <DashboardKPI
-              kpi={{ value: data.pendingPayments, label: 'Pending Approvals', description: 'Payments awaiting approval', status: data.pendingPayments > 0 ? 'warning' : 'neutral' }}
+              kpi={{ value: `${data.pendingPayments} transactions`, label: 'Pending Payment Approvals', description: 'Payments awaiting approval', status: data.pendingPayments > 0 ? 'warning' : 'neutral' }}
               icon={<Receipt className="w-5 h-5 text-blue-600" />}
               iconBgClass="bg-blue-100 border-transparent text-blue-600"
             />
@@ -193,7 +193,7 @@ export function AccountsDashboard() {
                       <div className="w-7 h-7 rounded-md bg-indigo-50 text-indigo-500 flex items-center justify-center"><Users className="w-4 h-4" /></div>
                       <span className="text-sm font-medium text-slate-700">Credit Customers</span>
                     </div>
-                    <span className="text-sm font-bold text-slate-900">{data.authorizedCustomers}</span>
+                      <span className="text-sm font-bold text-slate-900">{data.authorizedCustomers} customers</span>
                   </div>
                 </div>
                 <div className="pt-4 border-t border-slate-100 text-center mt-4">

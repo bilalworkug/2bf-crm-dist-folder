@@ -125,22 +125,22 @@ export function ManagerDashboard() {
           {/* ════ 4 KPI CARDS ════ */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <DashboardKPI
-              kpi={{ value: data.totalProduced.toLocaleString(), label: 'Produced Boxes', description: 'Finished goods scanned' }}
+              kpi={{ value: `${data.totalProduced.toLocaleString()} units`, label: 'Produced Quantity', description: 'Finished goods scanned' }}
               icon={<Factory className="w-5 h-5 text-purple-600" />}
               iconBgClass="bg-purple-100 border-transparent text-purple-600"
             />
             <DashboardKPI
-              kpi={{ value: data.totalInStock.toLocaleString(), label: 'Available Stock', description: 'Total across all warehouses' }}
+              kpi={{ value: `${data.totalInStock.toLocaleString()} units`, label: 'Available Product Quantity', description: 'Total across all warehouses' }}
               icon={<Archive className="w-5 h-5 text-emerald-600" />}
               iconBgClass="bg-emerald-100 border-transparent text-emerald-600"
             />
             <DashboardKPI
-              kpi={{ value: data.totalOrders.toLocaleString(), label: 'Orders', description: 'Total orders placed' }}
+              kpi={{ value: `${data.totalOrders.toLocaleString()} orders`, label: 'Total Orders', description: 'Total orders placed' }}
               icon={<ShoppingCart className="w-5 h-5 text-blue-600" />}
               iconBgClass="bg-blue-100 border-transparent text-blue-600"
             />
             <DashboardKPI
-              kpi={{ value: data.totalDispatched.toLocaleString(), label: 'Dispatched', description: 'Boxes shipped' }}
+              kpi={{ value: `${data.totalDispatched.toLocaleString()} units`, label: 'Dispatched Quantity', description: 'Units shipped' }}
               icon={<Truck className="w-5 h-5 text-amber-600" />}
               iconBgClass="bg-amber-100 border-transparent text-amber-600"
             />
@@ -186,7 +186,7 @@ export function ManagerDashboard() {
                 <div className="flex-1 w-full flex flex-col items-center justify-center p-6 bg-purple-50 rounded-xl border border-purple-100">
                   <Factory className="w-10 h-10 text-purple-500 mb-3" />
                   <span className="text-lg font-bold text-slate-900">Production</span>
-                  <span className="text-sm font-medium text-slate-600 mt-1">{data.totalProduced.toLocaleString()} boxes</span>
+                  <span className="text-sm font-medium text-slate-600 mt-1">{data.totalProduced.toLocaleString()} units produced</span>
                 </div>
                 <ArrowRight className="w-8 h-8 text-slate-300 hidden md:block" />
                 <div className="flex-1 w-full flex flex-col items-center justify-center p-6 bg-blue-50 rounded-xl border border-blue-100">
@@ -198,13 +198,13 @@ export function ManagerDashboard() {
                 <div className="flex-1 w-full flex flex-col items-center justify-center p-6 bg-amber-50 rounded-xl border border-amber-100">
                   <Truck className="w-10 h-10 text-amber-500 mb-3" />
                   <span className="text-lg font-bold text-slate-900">Dispatch</span>
-                  <span className="text-sm font-medium text-slate-600 mt-1">{data.totalDispatched.toLocaleString()} boxes</span>
+                  <span className="text-sm font-medium text-slate-600 mt-1">{data.totalDispatched.toLocaleString()} units dispatched</span>
                 </div>
                 <ArrowRight className="w-8 h-8 text-slate-300 hidden md:block" />
                 <div className="flex-1 w-full flex flex-col items-center justify-center p-6 bg-teal-50 rounded-xl border border-teal-100">
                   <PackageCheck className="w-10 h-10 text-teal-500 mb-3" />
                   <span className="text-lg font-bold text-slate-900">Delivery</span>
-                  <span className="text-sm font-medium text-slate-600 mt-1">{data.totalDelivered.toLocaleString()} delivered</span>
+                  <span className="text-sm font-medium text-slate-600 mt-1">{data.totalDelivered.toLocaleString()} units delivered</span>
                 </div>
               </div>
             </CardContent>

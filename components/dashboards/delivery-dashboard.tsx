@@ -113,22 +113,22 @@ export function DeliveryDashboard() {
           {/* ════ 4 KPI CARDS ════ */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <DashboardKPI
-              kpi={{ value: data.totalDispatched.toLocaleString(), label: 'Pending Deliveries', description: 'Dispatched, not yet delivered', status: data.totalDispatched > 0 ? 'warning' : 'neutral' }}
+              kpi={{ value: `${data.totalDispatched.toLocaleString()} units`, label: 'Pending Delivery Quantity', description: 'Dispatched, not yet delivered', status: data.totalDispatched > 0 ? 'warning' : 'neutral' }}
               icon={<MapPin className="w-5 h-5 text-amber-600" />}
               iconBgClass="bg-amber-100 border-transparent text-amber-600"
             />
             <DashboardKPI
-              kpi={{ value: '0', label: 'In Transit', description: 'Currently out for delivery' }}
+              kpi={{ value: '0 deliveries', label: 'In Transit', description: 'Currently out for delivery' }}
               icon={<Truck className="w-5 h-5 text-blue-600" />}
               iconBgClass="bg-blue-100 border-transparent text-blue-600"
             />
             <DashboardKPI
-              kpi={{ value: data.totalDelivered.toLocaleString(), label: 'Delivered Today', description: 'Successfully confirmed' }}
+              kpi={{ value: `${data.totalDelivered.toLocaleString()} units`, label: 'Delivered Quantity Today', description: 'Successfully confirmed' }}
               icon={<CheckCircle className="w-5 h-5 text-emerald-600" />}
               iconBgClass="bg-emerald-100 border-transparent text-emerald-600"
             />
             <DashboardKPI
-              kpi={{ value: '0', label: 'Failed Deliveries', description: 'Exceptions or returns' }}
+              kpi={{ value: '0 records', label: 'Failed Delivery Records', description: 'Exceptions or returns' }}
               icon={<AlertTriangle className="w-5 h-5 text-rose-600" />}
               iconBgClass="bg-rose-100 border-transparent text-rose-600"
             />

@@ -43,14 +43,14 @@ export async function exportDashboardToPDF(
   doc.setTextColor(60);
   
   const summary = [];
-  if (data.totalProduced > 0) summary.push(['Total Produced', data.totalProduced.toLocaleString()]);
-  if (data.totalInStock > 0) summary.push(['Available Stock', data.totalInStock.toLocaleString()]);
-  if (data.totalDispatched > 0) summary.push(['Total Dispatched', data.totalDispatched.toLocaleString()]);
-  if (data.totalDelivered > 0) summary.push(['Total Delivered', data.totalDelivered.toLocaleString()]);
-  if (data.totalOrders > 0) summary.push(['Total Orders', data.totalOrders.toLocaleString()]);
-  if (data.pendingOrders > 0) summary.push(['Pending Orders', data.pendingOrders.toLocaleString()]);
-  if (data.totalCustomers > 0) summary.push(['Total Customers', data.totalCustomers.toLocaleString()]);
-  if (data.totalReturned > 0) summary.push(['Total Returned', data.totalReturned.toLocaleString()]);
+  if (data.totalProduced > 0) summary.push(['Produced Quantity (units)', data.totalProduced.toLocaleString()]);
+  if (data.totalInStock > 0) summary.push(['Available Product Quantity (units)', data.totalInStock.toLocaleString()]);
+  if (data.totalDispatched > 0) summary.push(['Dispatched Quantity (units)', data.totalDispatched.toLocaleString()]);
+  if (data.totalDelivered > 0) summary.push(['Delivered Quantity (units)', data.totalDelivered.toLocaleString()]);
+  if (data.totalOrders > 0) summary.push(['Total Orders (count)', data.totalOrders.toLocaleString()]);
+  if (data.pendingOrders > 0) summary.push(['Pending Orders (count)', data.pendingOrders.toLocaleString()]);
+  if (data.totalCustomers > 0) summary.push(['Total Customers (count)', data.totalCustomers.toLocaleString()]);
+  if (data.totalReturned > 0) summary.push(['Returned Quantity (units)', data.totalReturned.toLocaleString()]);
 
   // If no summary metrics show up, just put a generic row
   if (summary.length === 0) {
@@ -72,7 +72,7 @@ export async function exportDashboardToPDF(
   doc.setFont('helvetica', 'bold');
   doc.text('Product Performance', 14, y + 10);
 
-  const tableColumn = ['Product', 'Produced', 'Available', 'Allocated', 'Dispatched', 'Delivered', 'Returned', 'Total'];
+  const tableColumn = ['Product Type', 'Produced (units)', 'Available (units)', 'Allocated (units)', 'Dispatched (units)', 'Delivered (units)', 'Returned (units)', 'Total (units)'];
   const tableRows = data.productPerformance.map(p => {
     const total = p.produced + p.inStock + p.allocated + p.dispatched + p.delivered + p.returned;
     return [
@@ -137,7 +137,7 @@ export async function exportDashboardToPDF(
     doc.setTextColor(0);
     doc.text('Warehouse Overview', 14, finalY);
 
-    const whColumns = ['Warehouse', 'Available Stock', 'Received Today', 'Dispatched Today', 'Status'];
+    const whColumns = ['Warehouse', 'Available Quantity (units)', 'Received Quantity (units)', 'Dispatched Quantity (units)', 'Status'];
     const whRows = data.warehouseOverview.map(w => [
       w.warehouseName,
       w.availableStock.toLocaleString(),
@@ -194,21 +194,21 @@ export async function exportDashboardToExcel(
     ['EXECUTIVE SUMMARY'],
   ];
   
-  if (data.totalProduced > 0) summaryData.push(['Total Produced', data.totalProduced]);
-  if (data.totalInStock > 0) summaryData.push(['Available Stock', data.totalInStock]);
-  if (data.totalDispatched > 0) summaryData.push(['Total Dispatched', data.totalDispatched]);
-  if (data.totalDelivered > 0) summaryData.push(['Total Delivered', data.totalDelivered]);
-  if (data.totalOrders > 0) summaryData.push(['Total Orders', data.totalOrders]);
-  if (data.pendingOrders > 0) summaryData.push(['Pending Orders', data.pendingOrders]);
-  if (data.totalCustomers > 0) summaryData.push(['Total Customers', data.totalCustomers]);
-  if (data.totalReturned > 0) summaryData.push(['Total Returned', data.totalReturned]);
+  if (data.totalProduced > 0) summaryData.push(['Produced Quantity (units)', data.totalProduced]);
+  if (data.totalInStock > 0) summaryData.push(['Available Product Quantity (units)', data.totalInStock]);
+  if (data.totalDispatched > 0) summaryData.push(['Dispatched Quantity (units)', data.totalDispatched]);
+  if (data.totalDelivered > 0) summaryData.push(['Delivered Quantity (units)', data.totalDelivered]);
+  if (data.totalOrders > 0) summaryData.push(['Total Orders (count)', data.totalOrders]);
+  if (data.pendingOrders > 0) summaryData.push(['Pending Orders (count)', data.pendingOrders]);
+  if (data.totalCustomers > 0) summaryData.push(['Total Customers (count)', data.totalCustomers]);
+  if (data.totalReturned > 0) summaryData.push(['Returned Quantity (units)', data.totalReturned]);
 
   const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
   summaryWs['!cols'] = [{ wch: 25 }, { wch: 20 }];
   XLSX.utils.book_append_sheet(wb, summaryWs, 'Executive Summary');
 
   // ── Sheet 2: Product Performance ──
-  const productHeader = ['Product', 'Produced', 'Available', 'Allocated', 'Dispatched', 'Delivered', 'Returned', 'Total Activity'];
+  const productHeader = ['Product Type', 'Produced (units)', 'Available (units)', 'Allocated (units)', 'Dispatched (units)', 'Delivered (units)', 'Returned (units)', 'Total Activity (units)'];
   const productRows = data.productPerformance.map(p => {
     const total = p.produced + p.inStock + p.allocated + p.dispatched + p.delivered + p.returned;
     return [p.productName, p.produced, p.inStock, p.allocated, p.dispatched, p.delivered, p.returned, total];
@@ -234,7 +234,7 @@ export async function exportDashboardToExcel(
 
   // ── Sheet 3: Warehouse Overview ──
   if (data.warehouseOverview && data.warehouseOverview.length > 0) {
-    const whHeader = ['Warehouse', 'Available Stock', 'Received Today', 'Dispatched Today', 'Status'];
+    const whHeader = ['Warehouse', 'Available Quantity (units)', 'Received Quantity (units)', 'Dispatched Quantity (units)', 'Status'];
     const whRows = data.warehouseOverview.map(w => [w.warehouseName, w.availableStock, w.receivedToday, w.dispatchedToday, w.status]);
     const whWs = XLSX.utils.aoa_to_sheet([whHeader, ...whRows]);
     whWs['!cols'] = [{ wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 15 }];

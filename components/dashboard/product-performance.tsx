@@ -52,12 +52,12 @@ export function ProductPerformanceWidget({ data }: { data: ProductPerformanceRow
               <TableHeader className="bg-slate-50 dark:bg-slate-900/80">
                 <TableRow className="hover:bg-transparent border-slate-200 dark:border-slate-800">
                   <TableHead className="font-semibold text-slate-900 dark:text-slate-100 py-4">Product</TableHead>
-                  <TableHead className="text-right font-semibold text-slate-900 dark:text-slate-100">Produced</TableHead>
-                  <TableHead className="text-right font-semibold text-slate-900 dark:text-slate-100">In Stock</TableHead>
-                  <TableHead className="text-right font-semibold text-slate-900 dark:text-slate-100">Allocated</TableHead>
-                  <TableHead className="text-right font-semibold text-slate-900 dark:text-slate-100">Dispatched</TableHead>
-                  <TableHead className="text-right font-semibold text-slate-900 dark:text-slate-100">Delivered</TableHead>
-                  <TableHead className="text-right font-semibold text-slate-900 dark:text-slate-100">Returned</TableHead>
+                  <TableHead className="text-right font-semibold text-slate-900 dark:text-slate-100">Produced (units)</TableHead>
+                  <TableHead className="text-right font-semibold text-slate-900 dark:text-slate-100">In Stock (units)</TableHead>
+                  <TableHead className="text-right font-semibold text-slate-900 dark:text-slate-100">Allocated (units)</TableHead>
+                  <TableHead className="text-right font-semibold text-slate-900 dark:text-slate-100">Dispatched (units)</TableHead>
+                  <TableHead className="text-right font-semibold text-slate-900 dark:text-slate-100">Delivered (units)</TableHead>
+                  <TableHead className="text-right font-semibold text-slate-900 dark:text-slate-100">Returned (units)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -74,7 +74,7 @@ export function ProductPerformanceWidget({ data }: { data: ProductPerformanceRow
                 ))}
                 {filtered.length > 0 && (
                   <TableRow className="bg-slate-50 dark:bg-slate-900 font-bold hover:bg-slate-50 dark:hover:bg-slate-900 border-t-2 border-slate-200 dark:border-slate-800">
-                    <TableCell className="py-4 text-slate-900 dark:text-white">TOTAL ({filtered.length})</TableCell>
+                    <TableCell className="py-4 text-slate-900 dark:text-white">TOTAL ({filtered.length} types)</TableCell>
                     <TableCell className="text-right text-slate-900 dark:text-white">{totals.produced.toLocaleString()}</TableCell>
                     <TableCell className="text-right text-slate-900 dark:text-white">{totals.inStock.toLocaleString()}</TableCell>
                     <TableCell className="text-right text-slate-900 dark:text-white">{totals.allocated.toLocaleString()}</TableCell>

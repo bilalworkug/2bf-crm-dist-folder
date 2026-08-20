@@ -123,22 +123,22 @@ export function WarehouseDashboard() {
           {/* ════ 4 KPI CARDS ════ */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <DashboardKPI
-              kpi={{ value: totalAvailable.toLocaleString(), label: 'Available Stock', description: 'Boxes ready for dispatch' }}
+              kpi={{ value: `${totalAvailable.toLocaleString()} units`, label: 'Available Quantity', description: 'Units ready for dispatch' }}
               icon={<Package className="w-5 h-5 text-indigo-600" />}
               iconBgClass="bg-indigo-100 border-transparent text-indigo-600"
             />
             <DashboardKPI
-              kpi={{ value: totalReceived.toLocaleString(), label: 'Received', description: 'Boxes received this period' }}
+              kpi={{ value: `${totalReceived.toLocaleString()} units`, label: 'Received Quantity', description: 'Units received this period' }}
               icon={<ArrowDownToLine className="w-5 h-5 text-emerald-600" />}
               iconBgClass="bg-emerald-100 border-transparent text-emerald-600"
             />
             <DashboardKPI
-              kpi={{ value: totalDispatchedWH.toLocaleString(), label: 'Dispatched', description: 'Boxes sent out this period' }}
+              kpi={{ value: `${totalDispatchedWH.toLocaleString()} units`, label: 'Dispatched Quantity', description: 'Units sent out this period' }}
               icon={<ArrowUpFromLine className="w-5 h-5 text-purple-600" />}
               iconBgClass="bg-purple-100 border-transparent text-purple-600"
             />
             <DashboardKPI
-              kpi={{ value: data.warehouseOverview.length, label: 'Warehouses', description: `${criticalWarehouses > 0 ? criticalWarehouses + ' need attention' : 'All operating normally'}`, status: criticalWarehouses > 0 ? 'warning' : 'neutral' }}
+              kpi={{ value: `${data.warehouseOverview.length} locations`, label: 'Warehouses', description: `${criticalWarehouses > 0 ? criticalWarehouses + ' need attention' : 'All operating normally'}`, status: criticalWarehouses > 0 ? 'warning' : 'neutral' }}
               icon={<AlertTriangle className="w-5 h-5 text-amber-600" />}
               iconBgClass="bg-amber-100 border-transparent text-amber-600"
             />
