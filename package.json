@@ -81,6 +81,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/react": "^18.3.31"
+    "@types/react": "^18.3.31",
+    "gh-pages": "^6.3.0"
   }
 }
