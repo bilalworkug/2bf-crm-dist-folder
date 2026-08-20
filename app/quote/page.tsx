@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { FileText, Plus, Trash2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
+import { ExportDropdown } from '@/components/export-dropdown';
 
 interface QuoteItem {
   product_id: string;
@@ -212,8 +213,16 @@ export default function QuotePage() {
         </div>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Our products</CardTitle>
+            <ExportDropdown
+              filenameBase="quote_products"
+              title="Available Products"
+              headers={['Product', 'Category']}
+              rows={products.map((p) => [p.name, p.category])}
+              variant="outline"
+              className="h-8"
+            />
           </CardHeader>
           <CardContent>
             <p className="mb-3 text-sm text-muted-foreground">

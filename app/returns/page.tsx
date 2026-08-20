@@ -15,10 +15,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState } from '@/components/empty-state';
-import { Undo2, AlertTriangle, Clock, Search, Plus, CheckCircle2 } from 'lucide-react';
+import { Undo2, AlertTriangle, Clock, Search, Plus, CheckCircle2, Camera } from 'lucide-react';
+import { CameraScanner } from '@/components/scanner/CameraScanner';
+import { ExportDropdown } from '@/components/export-dropdown';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import { formatDate } from '@/lib/format';
+import { playScanAlreadyExists, playScanError } from '@/components/scanner/audio';
 
 export default function ReturnsPage() {
   const { profile } = useAuth();
@@ -28,7 +31,9 @@ export default function ReturnsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ barcode: '', order_id: '', reason: '', condition: 'good' });
-
+  const [returnsCameraOpen, setReturnsCameraOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
 
   const isManager = profile && ['admin', 'manager'].includes(profile.role);
@@ -68,33 +73,41 @@ export default function ReturnsPage() {
       toast.error('Barcode and Order are required');
       return;
     }
+    if (isSubmitting) return;
 
+    setIsSubmitting(true);
     const { error } = await supabase.rpc('fn_request_return', {
       p_barcode: form.barcode.trim(),
       p_order_id: form.order_id,
       p_warehouse_id: warehouseId,
       p_reason: form.reason.trim(),
       p_condition: form.condition,
-      p_user_id: profile?.id,
-      p_user_role: profile?.role || 'system'
     });
 
     if (error) {
-      toast.error(error.message);
+      const msg = error.message;
+      if (msg.includes('duplicate key') || msg.toLowerCase().includes('duplicate') || msg.toLowerCase().includes('already')) {
+        playScanAlreadyExists();
+      } else {
+        playScanError();
+      }
+      toast.error(msg);
     } else {
       toast.success('Return request submitted');
       setOpen(false);
       setForm({ barcode: '', order_id: '', reason: '', condition: 'good' });
       load();
     }
+    setIsSubmitting(false);
   }
 
   async function handleApprove(returnId: string) {
     if (!confirm('Approve this return?')) return;
+    if (processingId) return;
+    setProcessingId(returnId);
+    
     const { error } = await supabase.rpc('fn_approve_return', {
       p_return_id: returnId,
-      p_user_id: profile?.id,
-      p_user_role: profile?.role || 'system'
     });
     if (error) {
       toast.error(error.message);
@@ -102,6 +115,7 @@ export default function ReturnsPage() {
       toast.success('Return approved');
       load();
     }
+    setProcessingId(null);
   }
 
   return (
@@ -120,7 +134,33 @@ export default function ReturnsPage() {
                 <form onSubmit={handleRequest} className="space-y-3">
                   <div className="space-y-1.5">
                     <Label>Barcode *</Label>
-                    <Input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} className="font-mono" />
+                    <div className="flex gap-2">
+                      <Input
+                        value={form.barcode}
+                        onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+                        className="font-mono flex-1"
+                        placeholder="Scan or type barcode"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setReturnsCameraOpen(!returnsCameraOpen)}
+                        title="Scan with camera"
+                        id="btn-returns-camera"
+                      >
+                        <Camera className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {/* Phase 10: ZXing camera scanner — onDetected fills barcode field; fn_request_return called on form submit */}
+                    <CameraScanner
+                      active={returnsCameraOpen}
+                      onClose={() => setReturnsCameraOpen(false)}
+                      onDetected={(scannedBarcode) => {
+                        setForm(prev => ({ ...prev, barcode: scannedBarcode }));
+                        setReturnsCameraOpen(false);
+                      }}
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Original Order *</Label>
@@ -147,8 +187,8 @@ export default function ReturnsPage() {
                     <Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
                   </div>
                   <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                    <Button type="submit">Submit Request</Button>
+                    <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>Cancel</Button>
+                    <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Submitting...' : 'Submit Request'}</Button>
                   </DialogFooter>
                 </form>
               </DialogContent>
@@ -164,6 +204,17 @@ export default function ReturnsPage() {
       </div>
 
       <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle>Returns</CardTitle>
+          <ExportDropdown
+            filenameBase="returns"
+            title="Returns Report"
+            headers={['Return #', 'Barcode', 'Product', 'Condition', 'Approval Status', 'Requested By']}
+            rows={filtered.map((r) => [r.return_number, r.barcode, r.product?.name ?? '—', r.condition, r.approval_status, r.processor?.full_name ?? '—'])}
+            variant="outline"
+            className="h-8"
+          />
+        </CardHeader>
         <CardContent className="p-4">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
@@ -216,8 +267,9 @@ export default function ReturnsPage() {
                     <TableCell className="text-sm">{r.processor?.full_name ?? '—'}</TableCell>
                     <TableCell>
                       {r.approval_status === 'pending' && isManager ? (
-                        <Button size="sm" variant="outline" className="h-8 text-green-600 hover:text-green-700" onClick={() => handleApprove(r.id)}>
-                          <CheckCircle2 className="mr-1 h-3 w-3" /> Approve
+                        <Button size="sm" variant="outline" className="h-8 text-green-600 hover:text-green-700" onClick={() => handleApprove(r.id)} disabled={processingId === r.id}>
+                          <CheckCircle2 className="mr-1 h-4 w-4" />
+                          {processingId === r.id ? 'Approving...' : 'Approve'}
                         </Button>
                       ) : (
                         r.approval_status === 'approved' && <span className="text-xs text-muted-foreground">Approved</span>

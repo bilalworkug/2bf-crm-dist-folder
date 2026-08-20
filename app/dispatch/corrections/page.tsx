@@ -42,9 +42,7 @@ export default function DispatchCorrectionsPage() {
     setSubmitting(true);
     const { error } = await supabase.rpc('fn_reverse_dispatch', {
       p_barcode: boxData.barcode,
-      p_reason: reason,
-      p_manager_id: profile.id,
-      p_manager_role: profile.role
+      p_reason: reason
     });
 
     if (error) {

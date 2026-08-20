@@ -1,0 +1,185 @@
+'use client';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/lib/auth';
+import { DashboardFilters } from '@/lib/dashboard/dashboard-types';
+import { fetchDashboardData, DashboardData } from '@/lib/dashboard/dashboard-queries';
+import { exportDashboardToPDF, exportDashboardToExcel } from '@/lib/dashboard/dashboard-export';
+import { DashboardShell } from '@/components/dashboard/dashboard-shell';
+import { DashboardKPI } from '@/components/dashboard/dashboard-kpi';
+import { ProductPerformanceWidget } from '@/components/dashboard/product-performance';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  RotateCcw, AlertTriangle, FileWarning, CheckCircle,
+  RefreshCcw, Download, Calendar, Info
+} from 'lucide-react';
+import Link from 'next/link';
+
+function SkeletonBlock({ className }: { className?: string }) {
+  return <div className={`bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 animate-pulse ${className || ''}`} />;
+}
+
+export function ReturnsDashboard() {
+  const { profile } = useAuth();
+  const [filters, setFilters] = useState<DashboardFilters>({ dateRange: 'today' });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<DashboardData | null>(null);
+
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await fetchDashboardData(filters, 'returns');
+      setData(result);
+    } catch (e: any) {
+      console.error('Dashboard load error:', e);
+      setError(e?.message || 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadData(); }, [filters.dateRange]);
+
+  if (!profile) return null;
+
+  return (
+    <DashboardShell>
+      {/* ════ HEADER & CONTROLS ════ */}
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Returns Dashboard</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Welcome back, {profile.full_name || 'Returns User'}</p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Select
+            value={filters.dateRange}
+            onValueChange={(v: any) => { setFilters({ ...filters, dateRange: v }); }}
+          >
+            <SelectTrigger className="w-auto h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-medium">
+              <Calendar className="w-4 h-4 mr-2 text-slate-500" />
+              <SelectValue placeholder="Select Period" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="today">Today: {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</SelectItem>
+              <SelectItem value="yesterday">Yesterday</SelectItem>
+              <SelectItem value="week">This Week</SelectItem>
+              <SelectItem value="month">This Month</SelectItem>
+              <SelectItem value="quarter">This Quarter</SelectItem>
+              <SelectItem value="year">This Year</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button variant="outline" onClick={loadData} className="h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+            <RefreshCcw className="w-4 h-4 mr-2 text-slate-500" />
+            Refresh
+          </Button>
+
+          <Button variant="outline" onClick={() => { if (data) exportDashboardToExcel(data, filters, profile?.full_name || 'User', 'Returns'); }} className="h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+            <Download className="w-4 h-4 mr-2 text-slate-500" />
+            Export
+          </Button>
+
+          <div className="flex items-center gap-3 ml-2 pl-4 border-l border-slate-200 dark:border-slate-800">
+            <div className="w-9 h-9 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-bold text-sm">
+              {profile.full_name?.charAt(0).toUpperCase() || 'R'}
+            </div>
+            <div className="hidden sm:block">
+              <p className="text-sm font-bold text-slate-900 dark:text-white leading-tight">{profile.full_name || 'Returns User'}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-tight capitalize">{profile.role?.replace('_', ' ')}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-3 p-4 mb-6 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 shadow-sm">
+          <AlertTriangle className="w-5 h-5 shrink-0" />
+          <p className="font-medium text-sm">{error}</p>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => <SkeletonBlock key={i} className="h-28" />)}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <SkeletonBlock className="h-[350px]" />
+            <SkeletonBlock className="h-[350px]" />
+          </div>
+        </div>
+      ) : data && (
+        <div className="space-y-6">
+
+          {/* ════ 4 KPI CARDS ════ */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <DashboardKPI
+              kpi={{ value: data.totalReturned.toLocaleString(), label: 'Return Requests', description: 'Total for this period' }}
+              icon={<RotateCcw className="w-5 h-5 text-indigo-600" />}
+              iconBgClass="bg-indigo-100 border-transparent text-indigo-600"
+            />
+            <DashboardKPI
+              kpi={{ value: '0', label: 'Pending Approval', description: 'Awaiting manager review', status: 'warning' }}
+              icon={<AlertTriangle className="w-5 h-5 text-amber-600" />}
+              iconBgClass="bg-amber-100 border-transparent text-amber-600"
+            />
+            <DashboardKPI
+              kpi={{ value: '0', label: 'Approved Returns', description: 'Ready to be received' }}
+              icon={<CheckCircle className="w-5 h-5 text-emerald-600" />}
+              iconBgClass="bg-emerald-100 border-transparent text-emerald-600"
+            />
+            <DashboardKPI
+              kpi={{ value: '0', label: 'Damaged Stock', description: 'Reported damaged items' }}
+              icon={<FileWarning className="w-5 h-5 text-rose-600" />}
+              iconBgClass="bg-rose-100 border-transparent text-rose-600"
+            />
+          </div>
+
+          {/* ════ PRODUCT PERFORMANCE & QUICK ACTIONS ════ */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="col-span-full xl:col-span-3">
+              <ProductPerformanceWidget data={data.productPerformance} />
+            </div>
+
+            {/* Quick Actions */}
+            <Card className="shadow-sm border-slate-200 flex flex-col">
+              <CardHeader className="pb-3 border-b border-slate-100">
+                <CardTitle className="text-sm font-bold text-slate-800">Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 grid grid-cols-1 gap-3 flex-1 content-start">
+                <Link href="/returns" className="flex items-center gap-2 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+                  <RotateCcw className="w-4 h-4 text-rose-500 shrink-0" />
+                  <span className="text-xs font-medium text-slate-700">Process Return</span>
+                </Link>
+                <Link href="/returns" className="flex items-center gap-2 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+                  <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span className="text-xs font-medium text-slate-700">View Approved</span>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* ════ BOTTOM ALERT BARS ════ */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="flex items-center justify-between p-3 rounded-lg border border-blue-200 bg-blue-50">
+              <div className="flex items-center gap-2 min-w-0">
+                <Info className="w-5 h-5 text-blue-600 shrink-0" />
+                <span className="text-sm font-semibold text-blue-900 truncate">
+                  {data.totalReturned > 0
+                    ? `${data.totalReturned} return(s) processed this period`
+                    : 'No returns this period'}
+                </span>
+              </div>
+              <Link href="/returns" className="text-xs font-semibold px-3 py-1.5 rounded bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors whitespace-nowrap ml-2 shrink-0">View All</Link>
+            </div>
+          </div>
+
+        </div>
+      )}
+    </DashboardShell>
+  );
+}

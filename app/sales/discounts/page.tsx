@@ -8,6 +8,7 @@ import { AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'react-hot-toast';
 import { EmptyState } from '@/components/empty-state';
+import { ExportDropdown } from '@/components/export-dropdown';
 import {
   Table,
   TableBody,
@@ -47,9 +48,7 @@ export default function DiscountApprovalsPage() {
     
     const { error } = await supabase.rpc('fn_approve_discount', {
       p_order_item_id: itemId,
-      p_is_approved: isApproved,
-      p_manager_id: profile.id,
-      p_manager_role: profile.role
+      p_is_approved: isApproved
     });
 
     if (error) {
@@ -79,6 +78,21 @@ export default function DiscountApprovalsPage() {
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Pending Discounts</h1>
           <p className="text-sm text-muted-foreground">Review and approve discount requests from Sales.</p>
         </div>
+        <ExportDropdown
+          filenameBase="pending_discounts"
+          title="Pending Discounts Report"
+          headers={['Order', 'Customer', 'Sales Rep', 'Product', 'Standard', 'Discount', 'Final Price', 'Reason']}
+          rows={items.map((it) => [
+            it.order?.order_number || '',
+            it.order?.customer?.customer_name || '',
+            it.order?.sales_person?.full_name || '',
+            it.product?.name || '',
+            `$${it.standard_price}`,
+            `-$${it.discount_amount}`,
+            `$${it.unit_price}`,
+            it.discount_reason || ''
+          ])}
+        />
       </div>
 
       <div className="rounded-xl border border-white/10 bg-card shadow-sm">

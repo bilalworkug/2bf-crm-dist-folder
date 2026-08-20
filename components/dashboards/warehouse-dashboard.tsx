@@ -1,162 +1,207 @@
 'use client';
-
-import { useWarehouseStats } from '@/lib/use-warehouse-stats';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
-import { 
-  Package, ArrowRightLeft, Camera, AlertTriangle, Box, Truck
-} from 'lucide-react';
-import { 
-  EnterpriseWelcomeHeader, 
-  EnterpriseKPICard, 
-  EnterpriseQuickActions,
-  QuickAction,
-  AlertsPanel
-} from './enterprise-components';
-import { EnterpriseBarChart } from './enterprise-charts';
+import { DashboardFilters } from '@/lib/dashboard/dashboard-types';
+import { fetchDashboardData, DashboardData } from '@/lib/dashboard/dashboard-queries';
+import { exportDashboardToPDF, exportDashboardToExcel } from '@/lib/dashboard/dashboard-export';
+import { DashboardShell } from '@/components/dashboard/dashboard-shell';
+import { DashboardKPI } from '@/components/dashboard/dashboard-kpi';
+import { ProductPerformanceWidget } from '@/components/dashboard/product-performance';
+import { WarehouseOverviewWidget } from '@/components/dashboard/warehouse-overview';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { EnterpriseDataTable } from './enterprise-tables';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Package, ArrowDownToLine, ArrowUpFromLine, AlertTriangle,
+  RefreshCcw, Download, Calendar, Info
+} from 'lucide-react';
+import Link from 'next/link';
 
-const receiptColumns = [
-  { accessorKey: 'id', header: 'RECEIPT ID', cell: ({ row }: any) => <span className="font-semibold text-gray-900 text-sm">{row.getValue('id')}</span> },
-  { accessorKey: 'supplier', header: 'SUPPLIER', cell: ({ row }: any) => <span className="text-gray-600 text-sm">{row.getValue('supplier')}</span> },
-  { accessorKey: 'items', header: 'ITEMS', cell: ({ row }: any) => <span className="text-gray-600 text-sm">{row.getValue('items')}</span> },
-  { accessorKey: 'status', header: 'STATUS', cell: ({ row }: any) => {
-    const status = row.getValue('status');
-    const colorClass = status === 'Completed' ? 'bg-emerald-500' : 'bg-amber-500';
-    return (
-      <Badge className={`${colorClass} text-white border-0 px-3 py-0.5 rounded-full font-medium text-[11px] shadow-sm`}>
-        {status}
-      </Badge>
-    );
-  }},
-];
-
-const mockReceipts = [
-  { id: 'RC-1092', supplier: 'Global Suppliers Inc', items: '24 Pallets', status: 'Pending' },
-  { id: 'RC-1091', supplier: 'Fast Parts Co', items: '5 Boxes', status: 'Completed' },
-  { id: 'RC-1090', supplier: 'Tech Solutions', items: '12 Pallets', status: 'Completed' },
-];
+function SkeletonBlock({ className }: { className?: string }) {
+  return <div className={`bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 animate-pulse ${className || ''}`} />;
+}
 
 export function WarehouseDashboard() {
   const { profile } = useAuth();
-  const stats = useWarehouseStats(profile);
+  const [filters, setFilters] = useState<DashboardFilters>({ dateRange: 'today' });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<DashboardData | null>(null);
 
-  const actions: QuickAction[] = [
-    { label: 'Receive Stock', icon: Package, href: '/warehouse/receive', count: 'Scan', subtitle: 'New inventory' },
-    { label: 'Transfer', icon: ArrowRightLeft, href: '/warehouse/transfer', count: 'Move', subtitle: 'Between locations' },
-    { label: 'Scan Camera', icon: Camera, href: '/warehouse/scan', count: 'Live', subtitle: 'Barcode scanner' },
-    { label: 'Damaged', icon: AlertTriangle, href: '/warehouse/damaged', count: 'Report', subtitle: 'Log issues' },
-  ];
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const warehouseId = profile?.warehouse_id || undefined;
+      const result = await fetchDashboardData(filters, 'warehouse', warehouseId);
+      setData(result);
+    } catch (e: any) {
+      console.error('Dashboard load error:', e);
+      setError(e?.message || 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const occupancyData = [
-    { zone: 'A', capacity: 85 },
-    { zone: 'B', capacity: 42 },
-    { zone: 'C', capacity: 90 },
-    { zone: 'D', capacity: 15 },
-  ];
+  useEffect(() => { loadData(); }, [filters.dateRange]);
 
-  const alerts = [
-    { id: '1', title: 'Zone C Near Capacity', type: 'warning' as const, message: 'Zone C is currently at 90% capacity.' },
-    { id: '2', title: 'Pending Receipts', type: 'info' as const, message: '3 shipments waiting to be received.' },
-  ];
+  if (!profile) return null;
+
+  const totalReceived = data?.warehouseOverview.reduce((s, w) => s + w.receivedToday, 0) ?? 0;
+  const totalDispatchedWH = data?.warehouseOverview.reduce((s, w) => s + w.dispatchedToday, 0) ?? 0;
+  const totalAvailable = data?.warehouseOverview.reduce((s, w) => s + w.availableStock, 0) ?? 0;
+  const criticalWarehouses = data?.warehouseOverview.filter(w => w.status === 'critical').length ?? 0;
 
   return (
-    <div className="min-h-screen bg-background px-4 md:px-8 py-6 font-sans">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <EnterpriseWelcomeHeader 
-          title="Warehouse Operations"
-          breadcrumbs={["Home", "Warehouse"]}
-        />
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <EnterpriseKPICard 
-            label="Warehouse Capacity" 
-            value={`${Math.round((stats.allocated / (stats.available + stats.allocated)) * 100)}%`} 
-            trend={1.2} 
-            trendLabel="Overall occupancy"
-            icon={Box}
-            iconColorClass="text-blue-500"
-            iconBgClass="bg-blue-50 border-blue-100"
-            valueColorClass="text-blue-500"
-            sparklineColor="#3b82f6"
-            sparklineData={[70, 72, 75, 78, 80, 82, 85]}
-          />
-          <EnterpriseKPICard 
-            label="Pending Receipts" 
-            value={stats.incomingTransfers} 
-            trend={-0.5} 
-            trendLabel="Trucks waiting"
-            icon={Truck}
-            iconColorClass="text-amber-500"
-            iconBgClass="bg-amber-50 border-amber-100"
-            valueColorClass="text-amber-500"
-            sparklineColor="#f59e0b"
-            sparklineData={[5, 4, 3, 2, 4, 3, 1]}
-          />
-          <EnterpriseKPICard 
-            label="Total Available" 
-            value={stats.available} 
-            trend={2.1} 
-            trendLabel="Ready to ship"
-            icon={Package}
-            iconColorClass="text-emerald-500"
-            iconBgClass="bg-emerald-50 border-emerald-100"
-            valueColorClass="text-emerald-500"
-            sparklineColor="#10b981"
-            sparklineData={[1200, 1250, 1230, 1300, 1280, 1350, 1400]}
-          />
-          <EnterpriseKPICard 
-            label="Damaged Stock" 
-            value={stats.correctionCount} 
-            trend={5.0} 
-            trendLabel="Requires review"
-            icon={AlertTriangle}
-            iconColorClass="text-rose-500"
-            iconBgClass="bg-rose-50 border-rose-100"
-            valueColorClass="text-rose-500"
-            sparklineColor="#ef4444"
-            sparklineData={[2, 3, 2, 4, 3, 5, 4]}
-          />
+    <DashboardShell>
+      {/* ════ HEADER & CONTROLS ════ */}
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Warehouse Dashboard</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Welcome back, {profile.full_name || 'Warehouse User'}</p>
         </div>
 
-        <EnterpriseQuickActions actions={actions} />
+        <div className="flex flex-wrap items-center gap-3">
+          <Select
+            value={filters.dateRange}
+            onValueChange={(v: any) => { setFilters({ ...filters, dateRange: v }); }}
+          >
+            <SelectTrigger className="w-auto h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-medium">
+              <Calendar className="w-4 h-4 mr-2 text-slate-500" />
+              <SelectValue placeholder="Select Period" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="today">Today: {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</SelectItem>
+              <SelectItem value="yesterday">Yesterday</SelectItem>
+              <SelectItem value="week">This Week</SelectItem>
+              <SelectItem value="month">This Month</SelectItem>
+              <SelectItem value="quarter">This Quarter</SelectItem>
+              <SelectItem value="year">This Year</SelectItem>
+            </SelectContent>
+          </Select>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <Card className="bg-white border-0 shadow-premium rounded-3xl overflow-hidden p-2 h-full flex flex-col">
-               <CardHeader className="pb-4 flex flex-row items-center justify-between">
-                  <CardTitle className="text-xl font-bold text-gray-900">Today's Receipts</CardTitle>
-                  <Button size="sm" variant="outline" className="text-gray-700 rounded-lg px-4 border-gray-200">
-                    + New Receipt
-                  </Button>
-               </CardHeader>
-               <CardContent className="flex-1">
-                 <EnterpriseDataTable columns={receiptColumns} data={mockReceipts} searchKey="id" />
-               </CardContent>
-            </Card>
+          <Button variant="outline" onClick={loadData} className="h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+            <RefreshCcw className="w-4 h-4 mr-2 text-slate-500" />
+            Refresh
+          </Button>
+
+          <Button variant="outline" onClick={() => { if (data) exportDashboardToExcel(data, filters, profile?.full_name || 'User', 'Warehouse'); }} className="h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+            <Download className="w-4 h-4 mr-2 text-slate-500" />
+            Export
+          </Button>
+
+          <div className="flex items-center gap-3 ml-2 pl-4 border-l border-slate-200 dark:border-slate-800">
+            <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">
+              {profile.full_name?.charAt(0).toUpperCase() || 'W'}
+            </div>
+            <div className="hidden sm:block">
+              <p className="text-sm font-bold text-slate-900 dark:text-white leading-tight">{profile.full_name || 'Warehouse User'}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-tight capitalize">{profile.role?.replace('_', ' ')}</p>
+            </div>
           </div>
-          <div className="flex flex-col gap-6">
-            <Card className="bg-white border-0 shadow-premium rounded-3xl p-2 flex-1">
-              <CardHeader className="pb-0">
-                <CardTitle className="text-lg font-bold text-gray-900">Zone Occupancy</CardTitle>
+        </div>
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-3 p-4 mb-6 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 shadow-sm">
+          <AlertTriangle className="w-5 h-5 shrink-0" />
+          <p className="font-medium text-sm">{error}</p>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => <SkeletonBlock key={i} className="h-28" />)}
+          </div>
+          <SkeletonBlock className="h-[300px]" />
+          <SkeletonBlock className="h-[350px]" />
+        </div>
+      ) : data && (
+        <div className="space-y-6">
+
+          {/* ════ 4 KPI CARDS ════ */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <DashboardKPI
+              kpi={{ value: totalAvailable.toLocaleString(), label: 'Available Stock', description: 'Boxes ready for dispatch' }}
+              icon={<Package className="w-5 h-5 text-indigo-600" />}
+              iconBgClass="bg-indigo-100 border-transparent text-indigo-600"
+            />
+            <DashboardKPI
+              kpi={{ value: totalReceived.toLocaleString(), label: 'Received', description: 'Boxes received this period' }}
+              icon={<ArrowDownToLine className="w-5 h-5 text-emerald-600" />}
+              iconBgClass="bg-emerald-100 border-transparent text-emerald-600"
+            />
+            <DashboardKPI
+              kpi={{ value: totalDispatchedWH.toLocaleString(), label: 'Dispatched', description: 'Boxes sent out this period' }}
+              icon={<ArrowUpFromLine className="w-5 h-5 text-purple-600" />}
+              iconBgClass="bg-purple-100 border-transparent text-purple-600"
+            />
+            <DashboardKPI
+              kpi={{ value: data.warehouseOverview.length, label: 'Warehouses', description: `${criticalWarehouses > 0 ? criticalWarehouses + ' need attention' : 'All operating normally'}`, status: criticalWarehouses > 0 ? 'warning' : 'neutral' }}
+              icon={<AlertTriangle className="w-5 h-5 text-amber-600" />}
+              iconBgClass="bg-amber-100 border-transparent text-amber-600"
+            />
+          </div>
+
+          {/* ════ WAREHOUSE OVERVIEW ════ */}
+          <WarehouseOverviewWidget warehouses={data.warehouseOverview} />
+
+          {/* ════ PRODUCT PERFORMANCE & QUICK ACTIONS ════ */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="col-span-full xl:col-span-3">
+              <ProductPerformanceWidget data={data.productPerformance} />
+            </div>
+
+            {/* Quick Actions */}
+            <Card className="shadow-sm border-slate-200 flex flex-col">
+              <CardHeader className="pb-3 border-b border-slate-100">
+                <CardTitle className="text-sm font-bold text-slate-800">Quick Actions</CardTitle>
               </CardHeader>
-              <CardContent className="pt-4 h-[250px]">
-                 <EnterpriseBarChart 
-                  title="" 
-                  description=""
-                  data={occupancyData}
-                  xAxisKey="zone"
-                  bars={[{ key: 'capacity', name: '% Full', color: '#4f46e5', gradientColors: ['#818cf8', '#4f46e5'] }]} 
-                />
+              <CardContent className="p-4 grid grid-cols-1 gap-3 flex-1 content-start">
+                <Link href="/warehouse" className="flex items-center gap-2 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+                  <ArrowDownToLine className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span className="text-xs font-medium text-slate-700">Receive Stock</span>
+                </Link>
+                <Link href="/warehouse/transfers" className="flex items-center gap-2 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+                  <Package className="w-4 h-4 text-blue-500 shrink-0" />
+                  <span className="text-xs font-medium text-slate-700">Stock Transfers</span>
+                </Link>
+                <Link href="/inventory" className="flex items-center gap-2 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+                  <Package className="w-4 h-4 text-indigo-500 shrink-0" />
+                  <span className="text-xs font-medium text-slate-700">View Inventory</span>
+                </Link>
               </CardContent>
             </Card>
-            <AlertsPanel alerts={alerts} />
           </div>
-        </div>
 
-      </div>
-    </div>
+          {/* ════ BOTTOM ALERT BARS ════ */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="flex items-center justify-between p-3 rounded-lg border border-emerald-200 bg-emerald-50">
+              <div className="flex items-center gap-2 min-w-0">
+                <Info className="w-5 h-5 text-emerald-600 shrink-0" />
+                <span className="text-sm font-semibold text-emerald-900 truncate">
+                  {totalReceived > 0 ? `${totalReceived} boxes received this period` : 'No stock received yet'}
+                </span>
+              </div>
+              <Link href="/warehouse" className="text-xs font-semibold px-3 py-1.5 rounded bg-emerald-100 text-emerald-800 hover:bg-emerald-200 transition-colors whitespace-nowrap ml-2 shrink-0">Receive Stock</Link>
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-lg border border-amber-200 bg-amber-50">
+              <div className="flex items-center gap-2 min-w-0">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                <span className="text-sm font-semibold text-amber-900 truncate">
+                  {criticalWarehouses > 0
+                    ? `${criticalWarehouses} warehouse(s) with low or no stock`
+                    : 'All warehouses operating normally'}
+                </span>
+              </div>
+              <Link href="/inventory" className="text-xs font-semibold px-3 py-1.5 rounded bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors whitespace-nowrap ml-2 shrink-0">View Details</Link>
+            </div>
+          </div>
+
+        </div>
+      )}
+    </DashboardShell>
   );
 }

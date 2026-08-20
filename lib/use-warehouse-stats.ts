@@ -70,8 +70,8 @@ export function useWarehouseStats(profile: any): WarehouseStats {
         supabase.from('warehouse_transfers').select('id', { count: 'exact', head: true }).eq('source_warehouse_id', warehouseId).in('status', ['draft', 'sent', 'receiving']),
         supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'pending'), // pending fulfillment (approximate globally or we could filter by items)
         supabase.from('warehouse_receipts').select('*, product:products(name), receiver:profiles(full_name)').eq('warehouse_id', warehouseId).order('received_at', { ascending: false }).limit(5),
-        supabase.from('correction_records').select('id', { count: 'exact', head: true }).eq('department', 'warehouse'),
-        supabase.from('correction_records').select('*').eq('department', 'warehouse').order('corrected_at', { ascending: false }).limit(5)
+        supabase.from('correction_records').select('id', { count: 'exact', head: true }).eq('correction_type', 'warehouse'),
+        supabase.from('correction_records').select('*').eq('correction_type', 'warehouse').order('performed_at', { ascending: false }).limit(5)
       ]);
 
       if (!active) return;

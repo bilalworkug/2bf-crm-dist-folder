@@ -12,10 +12,14 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState } from '@/components/empty-state';
-import { PackageCheck, Boxes, Clock, AlertTriangle, Search, CheckCircle2, XCircle } from 'lucide-react';
+import { ExportDropdown } from '@/components/export-dropdown';
+import { PackageCheck, Boxes, Clock, AlertTriangle, Search, CheckCircle2, XCircle, Camera } from 'lucide-react';
+import { ScanField } from '@/components/scanner/ScanField';
+import { CameraScanner } from '@/components/scanner/CameraScanner';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import { formatDate, isToday } from '@/lib/format';
+import { playScanAlreadyExists, playScanError } from '@/components/scanner/audio';
 
 export default function WarehousePage() {
   const { profile } = useAuth();
@@ -27,6 +31,7 @@ export default function WarehousePage() {
   const [warehouseId, setWarehouseId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [lastResult, setLastResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   const canEdit = profile && ['admin', 'warehouse', 'manager'].includes(profile.role);
   const defaultWarehouse = profile?.warehouse_id ?? '';
@@ -61,9 +66,9 @@ export default function WarehousePage() {
 
   const receiptsToday = receipts.filter((r) => isToday(r.received_at)).length;
 
-  async function handleReceive(e: React.FormEvent) {
-    e.preventDefault();
-    if (!barcode.trim()) {
+  // Core barcode receive logic — called by form submit AND camera scanner
+  async function receiveBarcode(code: string) {
+    if (!code.trim()) {
       toast.error('Enter a barcode');
       return;
     }
@@ -78,25 +83,34 @@ export default function WarehousePage() {
     const { data: warehouseName } = await supabase.from('warehouses').select('code').eq('id', warehouseId).single();
 
     const { error } = await supabase.rpc('fn_receive_box', {
-      p_barcode: barcode.trim(),
-      p_warehouse_id: warehouseId,
-      p_user_id: profile?.id,
+      p_barcode: code.trim(),
+      p_warehouse_id: warehouseId
     });
 
     if (error) {
       const msg = error.message;
+      if (msg.includes('duplicate key') || msg.toLowerCase().includes('duplicate') || msg.toLowerCase().includes('already')) {
+        playScanAlreadyExists();
+      } else {
+        playScanError();
+      }
       toast.error(msg);
       setLastResult({ type: 'error', message: msg });
       setSubmitting(false);
       return;
     }
 
-    const msg = `Received ${barcode} into ${warehouseName?.code || 'Warehouse'}`;
+    const msg = `Received ${code} into ${warehouseName?.code || 'Warehouse'}`;
     toast.success(msg);
     setLastResult({ type: 'success', message: msg });
     setBarcode('');
     setSubmitting(false);
     load();
+  }
+
+  async function handleReceive(e: React.FormEvent) {
+    e.preventDefault();
+    await receiveBarcode(barcode);
   }
 
   return (
@@ -120,16 +134,19 @@ export default function WarehousePage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleReceive} className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
               <div className="space-y-1.5 sm:col-span-2">
                 <Label>Barcode *</Label>
-                <Input
-                  value={barcode}
-                  onChange={(e) => setBarcode(e.target.value)}
-                  placeholder="Scan or enter barcode"
-                  autoFocus
-                  className="font-mono"
-                />
+                <div className="flex gap-2">
+                  <ScanField
+                    onSubmit={receiveBarcode}
+                    placeholder="Scan or enter barcode"
+                    autoFocus
+                    showCamera={true}
+                    disabled={submitting || !warehouseId}
+                    className="flex-1"
+                  />
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label>Warehouse *</Label>
@@ -143,12 +160,9 @@ export default function WarehousePage() {
                 </Select>
               </div>
               <div className="flex items-end">
-                <Button type="submit" disabled={submitting} className="w-full">
-                  <PackageCheck className="mr-2 h-4 w-4" />
-                  {submitting ? 'Receiving...' : 'Receive box'}
-                </Button>
+                {/* Submit button is handled by ScanField, but kept visually if needed for specific layouts. We'll leave it hidden since ScanField has a button */}
               </div>
-            </form>
+            </div>
 
             {lastResult && (
               <div className={`mt-3 flex items-start gap-2 rounded-lg p-3 text-sm ${lastResult.type === 'success' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300'}`}>
@@ -161,11 +175,29 @@ export default function WarehousePage() {
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <p>Only barcodes already scanned by production can be received. Random barcodes and duplicates are rejected.</p>
             </div>
+
+            {/* Phase 10: ZXing camera scanner — onDetected passes barcode to receiveBarcode(); no business logic in scanner */}
+            <CameraScanner
+              active={cameraOpen}
+              onClose={() => setCameraOpen(false)}
+              onDetected={(scannedBarcode) => receiveBarcode(scannedBarcode)}
+            />
           </CardContent>
         </Card>
       )}
 
       <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Recent receipts</CardTitle>
+          <ExportDropdown
+            filenameBase="warehouse_receipts"
+            title="Warehouse Receipts Report"
+            headers={['Barcode', 'Product', 'Warehouse', 'Received by', 'Received at']}
+            rows={filtered.map((r) => [r.barcode, r.product?.name ?? '—', r.warehouse?.code ?? '—', r.receiver?.full_name ?? '—', formatDate(r.received_at)])}
+            variant="outline"
+            className="h-8"
+          />
+        </CardHeader>
         <CardContent className="p-4">
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

@@ -10,23 +10,33 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/status-badge';
-import { UserCog, UserPlus, Shield, Building2 } from 'lucide-react';
+import { UserCog, UserPlus, Shield, KeyRound } from 'lucide-react';
 import { ROLES, ROLE_LABELS } from '@/lib/types';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import { formatDateShort } from '@/lib/format';
+import { ExportDropdown } from '@/components/export-dropdown';
 
 export default function UsersPage() {
   const { profile: current } = useAuth();
+  const isAdmin = current?.role === 'admin';
   const [users, setUsers] = useState<(Profile & { warehouse?: Warehouse | null })[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Profile | null>(null);
   const [form, setForm] = useState({ email: '', full_name: '', role: 'reports' as RoleKey, warehouse_id: '', password: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // ── Reset Password state ────────────────────────────────────────────
+  const [resetUser, setResetUser] = useState<Profile | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     load();
@@ -58,59 +68,159 @@ export default function UsersPage() {
     setOpen(true);
   }
 
+  // ── Reset Password helpers ──────────────────────────────────────────
+  function openResetPassword(u: Profile) {
+    setResetUser(u);
+    setResetPassword('');
+    setResetConfirmPassword('');
+    setResetOpen(true);
+  }
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!resetUser) return;
+    if (isResetting) return;
+
+    // Client-side validation
+    if (!resetPassword.trim()) {
+      toast.error('Password is required');
+      return;
+    }
+    if (resetPassword.length < 8) {
+      toast.error('Password must be at least 8 characters');
+      return;
+    }
+    if (!resetConfirmPassword.trim()) {
+      toast.error('Password confirmation is required');
+      return;
+    }
+    if (resetPassword !== resetConfirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const res = await fetch(`/api/admin/users/${resetUser.id}/reset-password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({
+          password: resetPassword,
+          confirmPassword: resetConfirmPassword,
+        }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        toast.error(result.message || 'Failed to reset password');
+        setIsResetting(false);
+        return;
+      }
+
+      toast.success('Password reset successfully. Give the temporary password to the user securely.');
+      setResetOpen(false);
+      setResetUser(null);
+      setResetPassword('');
+      setResetConfirmPassword('');
+    } catch {
+      toast.error('An unexpected error occurred');
+    } finally {
+      setIsResetting(false);
+    }
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!form.email.trim()) {
       toast.error('Email is required');
       return;
     }
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
     if (editing) {
       const updates: Record<string, unknown> = {
         full_name: form.full_name,
-        role: form.role,
-        warehouse_id: form.warehouse_id || null,
         updated_at: new Date().toISOString(),
       };
+      // Use secure RPC for role/active/warehouse changes
+      const { error: roleErr } = await supabase.rpc('fn_admin_update_user_role', {
+        p_user_id: editing.id,
+        p_role: form.role,
+        p_active: null,
+        p_warehouse_id: form.warehouse_id || null,
+      });
+      if (roleErr) { toast.error(roleErr.message); setIsSubmitting(false); return; }
+      // Update name separately (allowed by self-update policy for own, admin policy for others)
       const { error } = await supabase.from('profiles').update(updates).eq('id', editing.id);
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(error.message); setIsSubmitting(false); return; }
       toast.success('User updated');
     } else {
       if (!form.password.trim()) {
         toast.error('Password is required for new users');
+        setIsSubmitting(false);
         return;
       }
-      const { data: created, error: authErr } = await supabase.auth.admin.createUser({
-        email: form.email,
-        password: form.password,
-        email_confirm: true,
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password,
+          full_name: form.full_name,
+          role: form.role,
+          warehouse_id: form.warehouse_id || null
+        })
       });
-      if (authErr || !created?.user) {
-        toast.error(authErr?.message ?? 'Failed to create user');
+
+      if (!res.ok) {
+        const error = await res.json();
+        toast.error(error.message || 'Failed to create user');
+        setIsSubmitting(false);
         return;
       }
-      const { error: profileErr } = await supabase.from('profiles').insert({
-        id: created.user.id,
-        email: form.email,
-        full_name: form.full_name,
-        role: form.role,
-        warehouse_id: form.warehouse_id || null,
-        active: true,
-      });
-      if (profileErr) { toast.error(profileErr.message); return; }
-      toast.success('User created');
+      
+      toast.success('User created successfully');
     }
+    setIsSubmitting(false);
     setOpen(false);
     load();
   }
 
   async function toggleActive(u: Profile) {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ active: !u.active, updated_at: new Date().toISOString() })
-      .eq('id', u.id);
+    const { error } = await supabase.rpc('fn_admin_update_user_role', {
+      p_user_id: u.id,
+      p_role: u.role,
+      p_active: !u.active,
+      p_warehouse_id: u.warehouse_id || null,
+    });
     if (error) { toast.error(error.message); return; }
     toast.success(`User ${!u.active ? 'activated' : 'deactivated'}`);
     load();
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-2">
+          <Shield className="mx-auto h-12 w-12 text-muted-foreground" />
+          <h2 className="text-xl font-semibold">Access Denied</h2>
+          <p className="text-muted-foreground">Only administrators can manage users.</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -119,9 +229,17 @@ export default function UsersPage() {
         title="Users & Roles"
         description="Manage user accounts, role assignments, and permissions."
         actions={
-          <Button onClick={openNew}>
-            <UserPlus className="mr-2 h-4 w-4" /> New user
-          </Button>
+          <div className="flex gap-2">
+            <ExportDropdown
+              filenameBase="users"
+              title="Users Report"
+              headers={['Name', 'Email', 'Role', 'Warehouse', 'Status', 'Created']}
+              rows={users.map((u) => [u.full_name, u.email, ROLE_LABELS[u.role] || u.role, u.warehouse?.code || '—', u.active ? 'Active' : 'Inactive', formatDateShort(u.created_at)])}
+            />
+            <Button onClick={openNew}>
+              <UserPlus className="mr-2 h-4 w-4" /> New user
+            </Button>
+          </div>
         }
       />
 
@@ -161,12 +279,17 @@ export default function UsersPage() {
                       <Badge variant={u.active ? 'success' : 'destructive'}>{u.active ? 'Active' : 'Inactive'}</Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{formatDateShort(u.created_at)}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right space-x-1">
                       <Button size="sm" variant="outline" onClick={() => openEdit(u)}>Edit</Button>
                       {u.id !== current?.id && (
-                        <Button size="sm" variant="ghost" onClick={() => toggleActive(u)} className="ml-1">
-                          {u.active ? 'Deactivate' : 'Activate'}
-                        </Button>
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => openResetPassword(u)}>
+                            <KeyRound className="mr-1 h-3 w-3" />Reset Password
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => toggleActive(u)}>
+                            {u.active ? 'Deactivate' : 'Activate'}
+                          </Button>
+                        </>
                       )}
                     </TableCell>
                   </TableRow>
@@ -193,6 +316,7 @@ export default function UsersPage() {
         </CardContent>
       </Card>
 
+      {/* ── Edit / Create User Dialog ────────────────────────────────── */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
@@ -235,10 +359,72 @@ export default function UsersPage() {
               </div>
             )}
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button type="submit">{editing ? 'Save changes' : 'Create user'}</Button>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>Cancel</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Saving...' : editing ? 'Save changes' : 'Create user'}
+              </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Reset Password Dialog ────────────────────────────────────── */}
+      <Dialog open={resetOpen} onOpenChange={(v) => { setResetOpen(v); if (!v) { setResetUser(null); setResetPassword(''); setResetConfirmPassword(''); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-primary" /> Reset Password
+            </DialogTitle>
+          </DialogHeader>
+          {resetUser && (
+            <form onSubmit={handleResetPassword} className="space-y-4">
+              {/* Target user info */}
+              <div className="rounded-lg border bg-muted/50 p-3 space-y-1">
+                <p className="text-sm font-medium">{resetUser.full_name ?? '—'}</p>
+                <p className="text-sm text-muted-foreground">{resetUser.email}</p>
+                {!resetUser.active && (
+                  <Badge variant="destructive">Inactive</Badge>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="reset-password">New Temporary Password *</Label>
+                <Input
+                  id="reset-password"
+                  type="password"
+                  required
+                  minLength={8}
+                  placeholder="Minimum 8 characters"
+                  value={resetPassword}
+                  onChange={(e) => setResetPassword(e.target.value)}
+                  autoComplete="new-password"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="reset-confirm-password">Confirm Temporary Password *</Label>
+                <Input
+                  id="reset-confirm-password"
+                  type="password"
+                  required
+                  minLength={8}
+                  placeholder="Re-enter temporary password"
+                  value={resetConfirmPassword}
+                  onChange={(e) => setResetConfirmPassword(e.target.value)}
+                  autoComplete="new-password"
+                />
+              </div>
+
+              <DialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-0">
+                <Button type="button" variant="outline" onClick={() => setResetOpen(false)} disabled={isResetting}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isResetting} variant="default">
+                  {isResetting ? 'Resetting...' : 'Reset Password'}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>

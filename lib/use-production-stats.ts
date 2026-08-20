@@ -44,8 +44,8 @@ export function useProductionStats(): ProductionStats {
         supabase.from('production_scans').select('id', { count: 'exact', head: true }).gte('scanned_at', todayStr),
         supabase.from('production_scans').select('id', { count: 'exact', head: true }).gte('scanned_at', weekStr),
         supabase.from('production_scans').select('quantity, product:products(name), scanner:profiles(full_name)').gte('scanned_at', weekStr),
-        supabase.from('correction_records').select('id', { count: 'exact', head: true }).eq('department', 'production'),
-        supabase.from('correction_records').select('*').eq('department', 'production').order('corrected_at', { ascending: false }).limit(5),
+        supabase.from('correction_records').select('id', { count: 'exact', head: true }).eq('correction_type', 'production'),
+        supabase.from('correction_records').select('*').eq('correction_type', 'production').order('performed_at', { ascending: false }).limit(5),
         supabase.from('production_scans').select('id', { count: 'exact', head: true })
       ]);
 

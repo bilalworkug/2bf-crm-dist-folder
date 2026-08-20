@@ -3,7 +3,9 @@
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { X } from 'lucide-react';
+import { X, Calendar as CalendarIcon } from 'lucide-react';
+import { startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, format } from 'date-fns';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 export interface FilterState {
   dateFrom: string;
@@ -26,6 +28,7 @@ interface ReportFiltersProps {
   products?: any[];
   customers?: any[];
   statuses?: string[];
+  disabled?: boolean;
 }
 
 export function ReportFilters({
@@ -39,7 +42,8 @@ export function ReportFilters({
   warehouses = [],
   products = [],
   customers = [],
-  statuses = []
+  statuses = [],
+  disabled = false
 }: ReportFiltersProps) {
 
   const update = (key: keyof FilterState, value: string) => {
@@ -57,19 +61,83 @@ export function ReportFilters({
     });
   };
 
+  const handleDatePreset = (preset: string) => {
+    const today = new Date();
+    let from = today;
+    let to = today;
+
+    switch (preset) {
+      case 'today':
+        break;
+      case 'yesterday':
+        from = subDays(today, 1);
+        to = subDays(today, 1);
+        break;
+      case 'this_week':
+        from = startOfWeek(today, { weekStartsOn: 1 });
+        to = endOfWeek(today, { weekStartsOn: 1 });
+        break;
+      case 'last_week':
+        const lastWeek = subDays(today, 7);
+        from = startOfWeek(lastWeek, { weekStartsOn: 1 });
+        to = endOfWeek(lastWeek, { weekStartsOn: 1 });
+        break;
+      case 'this_month':
+        from = startOfMonth(today);
+        to = endOfMonth(today);
+        break;
+      case 'last_month':
+        const lastMonth = startOfMonth(subDays(startOfMonth(today), 1));
+        from = startOfMonth(lastMonth);
+        to = endOfMonth(lastMonth);
+        break;
+      case 'this_quarter':
+        from = startOfQuarter(today);
+        to = endOfQuarter(today);
+        break;
+      case 'this_year':
+        from = startOfYear(today);
+        to = endOfYear(today);
+        break;
+    }
+
+    setFilters({
+      ...filters,
+      dateFrom: format(from, 'yyyy-MM-dd'),
+      dateTo: format(to, 'yyyy-MM-dd')
+    });
+  };
+
   const hasFilters = filters.dateFrom || filters.dateTo || filters.warehouseId !== 'all' || filters.productId !== 'all' || filters.customerId !== 'all' || filters.status !== 'all';
 
   return (
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-end flex-wrap mb-6">
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-end flex-wrap mb-6 no-print">
       {showDate && (
         <>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">From date</label>
-            <Input type="date" value={filters.dateFrom} onChange={(e) => update('dateFrom', e.target.value)} className="w-full lg:w-44" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">To date</label>
-            <Input type="date" value={filters.dateTo} onChange={(e) => update('dateTo', e.target.value)} className="w-full lg:w-44" />
+            <label className="text-xs font-medium text-muted-foreground">Date Range</label>
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-[40px] px-0" disabled={disabled}>
+                    <CalendarIcon className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => handleDatePreset('today')}>Today</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDatePreset('yesterday')}>Yesterday</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDatePreset('this_week')}>This Week</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDatePreset('last_week')}>Last Week</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDatePreset('this_month')}>This Month</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDatePreset('last_month')}>Last Month</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDatePreset('this_quarter')}>This Quarter</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDatePreset('this_year')}>This Year</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Input type="date" value={filters.dateFrom} onChange={(e) => update('dateFrom', e.target.value)} className="w-full lg:w-36" disabled={disabled} />
+              <span className="text-muted-foreground">-</span>
+              <Input type="date" value={filters.dateTo} onChange={(e) => update('dateTo', e.target.value)} className="w-full lg:w-36" disabled={disabled} />
+            </div>
           </div>
         </>
       )}
@@ -77,7 +145,7 @@ export function ReportFilters({
       {showWarehouse && (
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground">Warehouse</label>
-          <Select value={filters.warehouseId} onValueChange={(v) => update('warehouseId', v)}>
+          <Select value={filters.warehouseId} onValueChange={(v) => update('warehouseId', v)} disabled={disabled}>
             <SelectTrigger className="w-full lg:w-44"><SelectValue placeholder="All" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All warehouses</SelectItem>
@@ -90,7 +158,7 @@ export function ReportFilters({
       {showProduct && (
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground">Product</label>
-          <Select value={filters.productId} onValueChange={(v) => update('productId', v)}>
+          <Select value={filters.productId} onValueChange={(v) => update('productId', v)} disabled={disabled}>
             <SelectTrigger className="w-full lg:w-48"><SelectValue placeholder="All" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All products</SelectItem>
@@ -103,7 +171,7 @@ export function ReportFilters({
       {showCustomer && (
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground">Customer</label>
-          <Select value={filters.customerId} onValueChange={(v) => update('customerId', v)}>
+          <Select value={filters.customerId} onValueChange={(v) => update('customerId', v)} disabled={disabled}>
             <SelectTrigger className="w-full lg:w-48"><SelectValue placeholder="All" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All customers</SelectItem>
@@ -116,7 +184,7 @@ export function ReportFilters({
       {showStatus && (
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground">Status</label>
-          <Select value={filters.status} onValueChange={(v) => update('status', v)}>
+          <Select value={filters.status} onValueChange={(v) => update('status', v)} disabled={disabled}>
             <SelectTrigger className="w-full lg:w-44"><SelectValue placeholder="All" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
@@ -127,7 +195,7 @@ export function ReportFilters({
       )}
 
       {hasFilters && (
-        <Button variant="ghost" onClick={clear} className="shrink-0 mb-[1px]">
+        <Button variant="ghost" onClick={clear} className="shrink-0 mb-[1px]" disabled={disabled}>
           <X className="mr-1.5 h-4 w-4" /> Clear
         </Button>
       )}

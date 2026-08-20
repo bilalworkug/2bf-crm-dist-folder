@@ -11,6 +11,9 @@ import { AccountsDashboard } from '@/components/dashboards/accounts-dashboard';
 import { ManagerDashboard } from '@/components/dashboards/manager-dashboard';
 import { ReportsDashboard } from '@/components/dashboards/reports-dashboard';
 
+import { DeliveryDashboard } from '@/components/dashboards/delivery-dashboard';
+import { ReturnsDashboard } from '@/components/dashboards/returns-dashboard';
+
 import { ProductionManagerDashboard } from '@/components/dashboards/production-manager-dashboard';
 import { WarehouseManagerDashboard } from '@/components/dashboards/warehouse-manager-dashboard';
 import { SalesManagerDashboard } from '@/components/dashboards/sales-manager-dashboard';
@@ -41,9 +44,13 @@ export default function DashboardPage() {
       return <DispatchDashboard />;
     case 'dispatch_manager':
       return <DispatchManagerDashboard />;
+    case 'delivery':
+      return <DeliveryDashboard />;
     case 'accounts':
     case 'accounts_manager':
       return <AccountsDashboard />;
+    case 'returns':
+      return <ReturnsDashboard />;
     case 'returns_manager':
       return <ReturnsManagerDashboard />;
     case 'manager':

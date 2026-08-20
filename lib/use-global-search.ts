@@ -119,7 +119,7 @@ export function useGlobalSearch(query: string) {
           id: c.id,
           title: c.customer_name,
           subtitle: c.company_name || 'Individual',
-          url: `/customers/${c.id}`,
+          url: `/customers/detail?id=${c.id}`,
           extra: c.phone || ''
         });
       });
@@ -131,7 +131,7 @@ export function useGlobalSearch(query: string) {
           title: `Order ${o.order_number}`,
           subtitle: o.customer?.customer_name || 'Unknown',
           status: o.status,
-          url: `/orders/${o.id}`,
+          url: `/orders/detail?id=${o.id}`,
           extra: `$${Number(o.total_amount || 0).toFixed(2)}`
         });
       });

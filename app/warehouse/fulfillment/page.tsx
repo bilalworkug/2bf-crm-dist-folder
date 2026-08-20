@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState } from '@/components/empty-state';
 import { PackageCheck, Search, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { ExportDropdown } from '@/components/export-dropdown';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import type { Order, OrderItem, Product, Warehouse, Profile } from '@/lib/types';
@@ -186,9 +187,30 @@ export default function FulfillmentPage() {
 
         <div className="lg:col-span-2">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Order Requirements</CardTitle>
-              <CardDescription>Products and quantities required for the selected order.</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Order Requirements</CardTitle>
+                <CardDescription>Products and quantities required for the selected order.</CardDescription>
+              </div>
+              {selectedOrderId && orderItems.length > 0 && (
+                <ExportDropdown
+                  filenameBase="fulfillment_requirements"
+                  title="Fulfillment Requirements Report"
+                  headers={['Product', 'Required Qty', 'Allocated Qty', 'Remaining Qty', 'Status']}
+                  rows={orderItems.map((item) => {
+                    const remaining = item.quantity - item.allocated_count;
+                    return [
+                      item.product?.name ?? '—',
+                      item.quantity,
+                      item.allocated_count,
+                      remaining > 0 ? remaining : 0,
+                      remaining <= 0 ? 'completed' : 'pending'
+                    ];
+                  })}
+                  variant="outline"
+                  className="h-8"
+                />
+              )}
             </CardHeader>
             <CardContent>
               {!selectedOrderId ? (

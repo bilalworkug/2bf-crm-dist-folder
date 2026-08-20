@@ -22,8 +22,10 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Barcode Search', href: '/barcode-search', icon: 'ScanSearch', roles: 'all' },
   { label: 'Box History', href: '/box-history', icon: 'History', roles: 'all' },
   { label: 'Customers', href: '/customers', icon: 'Users', roles: ['admin', 'sales', 'sales_manager', 'accounts', 'accounts_manager'] },
+  { label: 'Customer Credit', href: '/account/customers', icon: 'CreditCard', roles: ['admin', 'accounts_manager'] },
   { label: 'Orders', href: '/orders', icon: 'ShoppingCart', roles: ['admin', 'sales', 'sales_manager', 'accounts', 'accounts_manager'] },
-  { label: 'Pricing', href: '/pricing', icon: 'FileText', roles: ['admin'] },
+  { label: 'Payments', href: '/account/payments', icon: 'BadgeDollarSign', roles: ['admin', 'accounts', 'accounts_manager'] },
+  { label: 'Customer Debt', href: '/account/debt', icon: 'FileText', roles: ['admin', 'accounts', 'accounts_manager'] },
   { label: 'Discount Approvals', href: '/sales/discounts', icon: 'BadgeDollarSign', roles: ['admin', 'sales_manager'] },
   { label: 'Returns', href: '/returns', icon: 'Undo2', roles: ['admin', 'returns_manager'] },
   { label: 'Approvals', href: '/approvals', icon: 'ClipboardCheck', roles: ['admin', 'manager', 'sales_manager'] },
@@ -31,6 +33,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Audit Logs', href: '/audit', icon: 'ScrollText', roles: ['admin', 'manager'] },
   { label: 'Users & Roles', href: '/users', icon: 'UserCog', roles: ['admin'] },
   { label: 'Settings', href: '/settings', icon: 'Settings', roles: 'all' },
+  { label: 'Products', href: '/admin/products', icon: 'Package', roles: ['admin'] },
   { label: 'Quote / Order', href: '/quote', icon: 'FileText', roles: ['admin', 'sales', 'sales_manager'] },
 ];
 

@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { EmptyState } from '@/components/empty-state';
 import { ScrollText, Search, Filter, X, Download } from 'lucide-react';
 import { formatDate } from '@/lib/format';
+import { ExportDropdown } from '@/components/export-dropdown';
 import { toast } from 'sonner';
 
 const ACTIONS = [
@@ -93,9 +94,12 @@ export default function AuditLogsPage() {
         title="Audit Logs"
         description="Complete record of every important action in the system."
         actions={
-          <Button variant="outline" onClick={exportCsv}>
-            <Download className="mr-2 h-4 w-4" /> Export CSV
-          </Button>
+          <ExportDropdown
+            filenameBase="audit_logs"
+            title="Audit Logs Report"
+            headers={['Time', 'User', 'Action', 'Barcode', 'Product', 'Warehouse', 'Entity']}
+            rows={filtered.map((l) => [formatDate(l.created_at), l.profile?.full_name ?? '—', l.action, l.barcode ?? '—', l.product?.name ?? '—', l.warehouse?.code ?? '—', l.entity_type ?? '—'])}
+          />
         }
       />
 

@@ -12,12 +12,12 @@ import { EmptyState } from '@/components/empty-state';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, ShoppingCart, Wallet, Package, User, Undo2, DollarSign } from 'lucide-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { formatDate, formatMoney } from '@/lib/format';
 
 export default function CustomerDetailClient() {
-  const params = useParams<{ id: string }>();
-  const id = params.id;
+  const searchParams = useSearchParams();
+  const id = searchParams.get('id');
   const [customer, setCustomer] = useState<(Customer & { sales_person?: Profile | null }) | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -154,7 +154,7 @@ export default function CustomerDetailClient() {
                     <div key={o.id} className="rounded-lg border p-4 space-y-4">
                       <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
                         <div>
-                          <Link href={`/orders/${o.id}`} className="font-medium text-foreground hover:underline">
+                          <Link href={`/orders/detail?id=${o.id}`} className="font-medium text-foreground hover:underline">
                             {o.order_number}
                           </Link>
                           <p className="text-xs text-muted-foreground">{formatDate(o.created_at)}{o.sales_person ? ` · ${o.sales_person.full_name}` : ''}</p>

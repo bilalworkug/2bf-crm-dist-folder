@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/empty-state';
 import { Search } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { formatDate } from '@/lib/format';
+import { ExportDropdown } from '@/components/export-dropdown';
 
 export default function AuditLogsPage() {
   const { profile } = useAuth();
@@ -68,6 +69,14 @@ export default function AuditLogsPage() {
       <PageHeader
         title="Audit Logs"
         description="System activity tracking for security and accountability."
+        actions={
+          <ExportDropdown
+            filenameBase="audit_logs"
+            title="Audit Logs Report"
+            headers={['Timestamp', 'User', 'Role', 'Action', 'Barcode', 'Warehouse', 'Details']}
+            rows={filtered.map((l) => [formatDate(l.created_at), l.user?.full_name ?? '—', l.user_role ?? '—', l.action, l.barcode ?? '—', l.warehouse?.code ?? '—', l.details ? JSON.stringify(l.details) : '—'])}
+          />
+        }
       />
 
       <Card>

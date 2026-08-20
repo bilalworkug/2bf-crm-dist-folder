@@ -20,7 +20,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import { formatDateShort } from '@/lib/format';
-import { exportToCsv } from '@/lib/export';
+import { ExportDropdown } from '@/components/export-dropdown';
 
 export default function CustomersPage() {
   const { profile } = useAuth();
@@ -101,13 +101,12 @@ export default function CustomersPage() {
         actions={
           canEdit ? (
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => {
-                exportToCsv(`customers-${new Date().toISOString().slice(0,10)}.csv`,
-                  ['Name', 'Company', 'Phone', 'Email', 'Location', 'Orders', 'Created'],
-                  filtered.map((c) => [c.customer_name, c.company_name ?? '', c.phone ?? '', c.email ?? '', c.location ?? '', c.order_count ?? 0, formatDateShort(c.created_at)]));
-              }}>
-                <Download className="mr-2 h-4 w-4" /> Export
-              </Button>
+              <ExportDropdown
+                filenameBase="customers"
+                title="Customers Report"
+                headers={['Name', 'Company', 'Phone', 'Email', 'Location', 'Orders', 'Created']}
+                rows={filtered.map((c) => [c.customer_name, c.company_name ?? '', c.phone ?? '', c.email ?? '', c.location ?? '', c.order_count ?? 0, formatDateShort(c.created_at)])}
+              />
               <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button><UserPlus className="mr-2 h-4 w-4" /> New customer</Button>
@@ -209,7 +208,7 @@ export default function CustomersPage() {
               </TableHeader>
               <TableBody>
                 {filtered.map((c) => (
-                  <TableRow key={c.id} className="cursor-pointer" onClick={() => router.push(`/customers/${c.id}`)}>
+                  <TableRow key={c.id} className="cursor-pointer" onClick={() => router.push(`/customers/detail?id=${c.id}`)}>
                       <TableCell className="font-medium">
                         <div>
                           <p className="text-foreground">{c.customer_name}</p>

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState } from '@/components/empty-state';
-import { exportToCsv } from '@/lib/export';
+import { ExportDropdown } from '@/components/export-dropdown';
 import { Boxes, PackageCheck, Truck, Undo2, Search, Download } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 
@@ -158,19 +158,12 @@ export default function InventoryPage() {
         title="Inventory"
         description={isSalesUser ? "Available stock across all warehouses." : "Strict physical stock tracking."}
         actions={
-          <Button variant="outline" onClick={() => {
-            const columns = isSalesUser ? 
-              ['Product', 'Warehouse', 'Available'] : 
-              ['Product', 'Warehouse', 'Total Physical', 'Available', 'Allocated', 'Dispatched', 'Damaged', 'Expired'];
-            
-            exportToCsv(`inventory-${new Date().toISOString().slice(0,10)}.csv`,
-              columns,
-              filtered.map((r) => isSalesUser ? 
-                [r.product.name, r.warehouse?.code ?? '', r.available] : 
-                [r.product.name, r.warehouse?.code ?? '', r.total_physical, r.available, r.allocated, r.dispatched, r.damaged, r.expired]));
-          }}>
-            <Download className="mr-2 h-4 w-4" /> Export
-          </Button>
+          <ExportDropdown
+            filenameBase="inventory"
+            title="Inventory Report"
+            headers={isSalesUser ? ['Product', 'Warehouse', 'Available'] : ['Product', 'Warehouse', 'Total Physical', 'Available', 'Allocated', 'Dispatched', 'Damaged', 'Expired']}
+            rows={filtered.map((r) => isSalesUser ? [r.product.name, r.warehouse?.code ?? '', r.available] : [r.product.name, r.warehouse?.code ?? '', r.total_physical, r.available, r.allocated, r.dispatched, r.damaged, r.expired])}
+          />
         }
       />
 

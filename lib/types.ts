@@ -10,7 +10,9 @@ export type RoleKey =
   | 'sales_manager'
   | 'accounts'
   | 'accounts_manager'
+  | 'returns'
   | 'returns_manager'
+  | 'delivery'
   | 'manager'
   | 'reports';
 
@@ -31,7 +33,7 @@ export const ROLES: RoleInfo[] = [
   { key: 'sales', name: 'Sales Person', description: 'Creates customers and orders, views customer history' },
   { key: 'sales_manager', name: 'Sales Manager', description: 'Manages sales, approves discounts' },
   { key: 'accounts', name: 'Accounts User', description: 'Tracks invoices, payments, balances' },
-  { key: 'accounts_manager', name: 'Accounts Manager', description: 'Manages accounts and corrections' },
+  { key: 'accounts_manager', name: 'Accounts Manager', description: 'Manages accounts, corrections, and customer credit authorization' },
   { key: 'returns_manager', name: 'Returns Manager', description: 'Manages returns and corrections' },
   { key: 'manager', name: 'Supervisor / Manager', description: 'Approves actions, reviews performance and exceptions (Legacy)' },
   { key: 'reports', name: 'Full Reports User', description: 'Read-only access to all reports and audit logs' },
@@ -49,7 +51,9 @@ export const ROLE_LABELS: Record<RoleKey, string> = {
   sales_manager: 'Sales Manager',
   accounts: 'Accounts',
   accounts_manager: 'Accounts Manager',
+  returns: 'Returns',
   returns_manager: 'Returns Manager',
+  delivery: 'Delivery',
   manager: 'Manager',
   reports: 'Reports',
 };
@@ -82,6 +86,76 @@ export interface Product {
   category: string | null;
   unit: string;
   created_at: string;
+  active?: boolean;
+}
+
+export interface CorrectionLog {
+  id: string;
+  original_record_id: string;
+  record_type: string;
+  action_type: string;
+  corrected_by: string;
+  reason: string;
+  old_data: any;
+  new_data: any;
+  created_at: string;
+  profile?: Profile;
+}
+
+export interface Payment {
+  id: string;
+  order_id: string;
+  customer_id: string;
+  amount: number;
+  currency: string;
+  payment_method: string;
+  payment_date: string;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'reversed';
+  reference_number?: string;
+  notes?: string;
+  submitted_by: string;
+  approved_by?: string;
+  approved_at?: string;
+  created_at: string;
+  updated_at: string;
+  order?: Order;
+  customer?: Customer;
+  submitter?: Profile;
+  approver?: Profile;
+}
+
+export interface PaymentDocument {
+  id: string;
+  payment_id: string;
+  document_type: string;
+  file_name: string;
+  storage_path: string;
+  uploaded_by: string;
+  uploaded_at: string;
+}
+
+export interface Notification {
+  id: string;
+  type: string;
+  customer_id: string;
+  reference_id: string;
+  message: string;
+  is_read: boolean;
+  milestone: string;
+  created_at: string;
+}
+
+export interface ProductPrice {
+  id: string;
+  product_id: string;
+  price: number;
+  currency: string;
+  effective_from: string;
+  effective_to: string | null;
+  active: boolean;
+  created_by: string;
+  created_at: string;
+  notes: string | null;
 }
 
 export interface Customer {
@@ -100,17 +174,35 @@ export interface Customer {
   updated_at: string;
 }
 
+export interface CustomerCreditSettings {
+  id: string;
+  customer_id: string;
+  credit_allowed: boolean;
+  credit_limit: number;
+  payment_terms_days: number;
+  notes: string | null;
+  active: boolean;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Order {
   id: string;
   order_number: string;
   customer_id: string;
   status: string;
-  notes: string | null;
-  sales_person_id: string | null;
+  notes?: string;
+  sales_person_id?: string;
   total_amount: number;
   paid_amount: number;
+  payment_type?: 'pay_now' | 'credit';
+  due_date?: string;
   created_at: string;
   updated_at: string;
+  customer?: Customer;
+  items?: OrderItem[];
 }
 
 export interface OrderItem {

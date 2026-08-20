@@ -6,7 +6,7 @@ import { useState } from 'react';
 import {
   LayoutDashboard, ScanLine, PackageCheck, Truck, Boxes, Search, History,
   Users, ShoppingCart, Undo2, ClipboardCheck, BarChart3, ScrollText,
-  UserCog, Settings, FileText, Building2, Menu, X, LogOut, ChevronLeft,
+  UserCog, Settings, FileText, Building2, Menu, X, LogOut, ChevronLeft, Package
 } from 'lucide-react';
 import { Logo } from '@/lib/logo';
 import { useAuth } from '@/lib/auth';
@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard, ScanLine, PackageCheck, Truck, Boxes, Search, History,
   Users, ShoppingCart, Undo2, ClipboardCheck, BarChart3, ScrollText,
-  UserCog, Settings, FileText, Building2,
+  UserCog, Settings, FileText, Building2, Package
 };
 
 export function Sidebar() {

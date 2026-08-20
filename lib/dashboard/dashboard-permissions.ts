@@ -1,0 +1,54 @@
+export const DASHBOARD_WIDGETS = {
+  KPI_EXECUTIVE: 'kpi_executive',
+  KPI_PRODUCTION: 'kpi_production',
+  KPI_WAREHOUSE: 'kpi_warehouse',
+  KPI_SALES: 'kpi_sales',
+  PRODUCT_PERFORMANCE: 'product_performance',
+  WAREHOUSE_OVERVIEW: 'warehouse_overview',
+  PRODUCTION_OVERVIEW: 'production_overview',
+  ACTION_REQUIRED: 'action_required',
+  FACTORY_HEALTH: 'factory_health',
+  RECENT_ACTIVITY: 'recent_activity',
+  ORDER_OVERVIEW: 'order_overview'
+} as const;
+
+export type DashboardWidget = typeof DASHBOARD_WIDGETS[keyof typeof DASHBOARD_WIDGETS];
+
+export const ROLE_WIDGET_MAP: Record<string, DashboardWidget[]> = {
+  admin: Object.values(DASHBOARD_WIDGETS),
+  manager: [
+    DASHBOARD_WIDGETS.KPI_EXECUTIVE,
+    DASHBOARD_WIDGETS.PRODUCT_PERFORMANCE,
+    DASHBOARD_WIDGETS.WAREHOUSE_OVERVIEW,
+    DASHBOARD_WIDGETS.PRODUCTION_OVERVIEW,
+    DASHBOARD_WIDGETS.ORDER_OVERVIEW,
+    DASHBOARD_WIDGETS.ACTION_REQUIRED,
+    DASHBOARD_WIDGETS.FACTORY_HEALTH,
+    DASHBOARD_WIDGETS.RECENT_ACTIVITY
+  ],
+  production: [
+    DASHBOARD_WIDGETS.KPI_PRODUCTION,
+    DASHBOARD_WIDGETS.PRODUCTION_OVERVIEW,
+    DASHBOARD_WIDGETS.RECENT_ACTIVITY,
+    DASHBOARD_WIDGETS.ACTION_REQUIRED
+  ],
+  warehouse: [
+    DASHBOARD_WIDGETS.KPI_WAREHOUSE,
+    DASHBOARD_WIDGETS.WAREHOUSE_OVERVIEW,
+    DASHBOARD_WIDGETS.RECENT_ACTIVITY,
+    DASHBOARD_WIDGETS.ACTION_REQUIRED
+  ],
+  sales: [
+    DASHBOARD_WIDGETS.KPI_SALES,
+    DASHBOARD_WIDGETS.ORDER_OVERVIEW,
+    DASHBOARD_WIDGETS.PRODUCT_PERFORMANCE,
+    DASHBOARD_WIDGETS.RECENT_ACTIVITY,
+    DASHBOARD_WIDGETS.ACTION_REQUIRED
+  ]
+};
+
+export function canViewWidget(role: string, widget: DashboardWidget): boolean {
+  if (role === 'admin') return true;
+  const widgets = ROLE_WIDGET_MAP[role] || [];
+  return widgets.includes(widget);
+}

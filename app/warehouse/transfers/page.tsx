@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'react-hot-toast';
 import { StatCard } from '@/components/stat-card';
 import { EmptyState } from '@/components/empty-state';
+import { ExportDropdown } from '@/components/export-dropdown';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -230,7 +231,15 @@ export default function TransfersPage() {
               <p className="text-sm text-muted-foreground">Transfer stock between warehouses.</p>
             </div>
           </div>
-          <Button onClick={() => setMode('create')}><Plus className="h-4 w-4 mr-2" /> New Transfer</Button>
+          <div className="flex gap-2">
+            <ExportDropdown
+              filenameBase="warehouse_transfers"
+              title="Warehouse Transfers Report"
+              headers={['Transfer #', 'From', 'To', 'Status', 'Created By', 'Date']}
+              rows={transfers.map((t) => [t.transfer_number, t.from_wh?.name || '', t.to_wh?.name || '', t.status, t.creator?.full_name || '', new Date(t.created_at).toLocaleDateString()])}
+            />
+            <Button onClick={() => setMode('create')}><Plus className="h-4 w-4 mr-2" /> New Transfer</Button>
+          </div>
         </div>
 
         <div className="rounded-xl border border-white/10 bg-card shadow-sm">

@@ -6,12 +6,13 @@ import type { Approval, Profile } from '@/lib/types';
 import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
 import { StatusBadge } from '@/components/status-badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { ExportDropdown } from '@/components/export-dropdown';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState } from '@/components/empty-state';
@@ -92,6 +93,17 @@ export default function ApprovalsPage() {
       </div>
 
       <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <h2 className="text-lg font-semibold">Approvals</h2>
+          <ExportDropdown
+            filenameBase="approvals"
+            title="Approvals Report"
+            headers={['Type', 'Reason', 'Requested By', 'Requested At', 'Reviewed By', 'Status']}
+            rows={filtered.map((a) => [a.request_type.replace(/_/g, ' '), a.reason ?? '—', a.requester?.full_name ?? '—', formatDate(a.requested_at), a.reviewer?.full_name ?? '—', a.status])}
+            variant="outline"
+            className="h-8"
+          />
+        </CardHeader>
         <CardContent className="p-4">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">

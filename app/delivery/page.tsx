@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth';
-import { PackageCheck, Search, CheckCircle, CheckCircle2, XCircle, AlertCircle, Truck } from 'lucide-react';
+import { Truck, Search, PackageCheck, AlertCircle, CheckCircle2, FileText, ArrowRight, XCircle, Camera } from 'lucide-react';
+import { ScanField } from '@/components/scanner/ScanField';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,9 +15,10 @@ import { EmptyState } from '@/components/empty-state';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CameraScanner } from '@/components/scanner/CameraScanner';
+import { ExportDropdown } from '@/components/export-dropdown';
+import { playScanAlreadyExists, playScanError } from '@/components/scanner/audio';
 
 export default function DeliveryPage() {
   const { profile } = useAuth();
@@ -32,6 +34,7 @@ export default function DeliveryPage() {
   const [receiverName, setReceiverName] = useState('');
   const [receiverPhone, setReceiverPhone] = useState('');
   const [deliveryNotes, setDeliveryNotes] = useState('');
+  const [cameraOpen, setCameraOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -94,24 +97,28 @@ export default function DeliveryPage() {
       delivered_barcodes: deliveredSet,
     });
 
-    // Create a new delivery record
-    const { data: del } = await supabase
-      .from('deliveries')
-      .insert({ order_id: orderId, status: 'pending' })
-      .select()
-      .single();
-    if (del) setDeliveryId(del.id);
+    // Create a new delivery record securely via RPC
+    const { data: delId, error: delErr } = await supabase
+      .rpc('fn_create_delivery', { p_order_id: orderId });
+      
+    if (delId) {
+      setDeliveryId(delId);
+    } else if (delErr) {
+      toast.error('Could not start delivery: ' + delErr.message);
+      return;
+    }
 
     setTimeout(() => inputRef.current?.focus(), 100);
   }
 
-  async function handleScan(e: React.FormEvent) {
-    e.preventDefault();
-    if (!barcode.trim() || !deliveryId || !profile) return;
-    const bc = barcode.trim().toUpperCase();
+  // Core deliver logic — called by form submit AND camera scanner
+  async function deliverBarcode(rawCode: string) {
+    if (!rawCode.trim() || !deliveryId || !profile) return;
+    const bc = rawCode.trim().toUpperCase();
     setBarcode('');
 
     if (scannedBoxes.includes(bc)) {
+      playScanAlreadyExists();
       toast.error(`${bc} already scanned in this session.`);
       return;
     }
@@ -120,13 +127,17 @@ export default function DeliveryPage() {
     const { error } = await supabase.rpc('fn_deliver_box', {
       p_barcode: bc,
       p_order_id: selectedOrderId,
-      p_delivery_id: deliveryId,
-      p_user_id: profile.id,
-      p_user_role: profile.role,
+      p_delivery_id: deliveryId
     });
 
     if (error) {
-      toast.error(error.message);
+      const msg = error.message;
+      if (msg.includes('duplicate key') || msg.toLowerCase().includes('duplicate') || msg.toLowerCase().includes('already')) {
+        playScanAlreadyExists();
+      } else {
+        playScanError();
+      }
+      toast.error(msg);
     } else {
       toast.success(`✓ ${bc} delivered`);
       setScannedBoxes(prev => [bc, ...prev]);
@@ -150,6 +161,11 @@ export default function DeliveryPage() {
     inputRef.current?.focus();
   }
 
+  async function handleScan(e: React.FormEvent) {
+    e.preventDefault();
+    await deliverBarcode(barcode);
+  }
+
   async function handleCompleteDelivery(e: React.FormEvent) {
     e.preventDefault();
     if (!deliveryId || !profile) return;
@@ -159,9 +175,7 @@ export default function DeliveryPage() {
       p_delivery_id: deliveryId,
       p_receiver_name: receiverName,
       p_receiver_phone: receiverPhone,
-      p_notes: deliveryNotes,
-      p_user_id: profile.id,
-      p_user_role: profile.role,
+      p_notes: deliveryNotes
     });
 
     if (error) {
@@ -195,8 +209,18 @@ export default function DeliveryPage() {
 
       {!selectedOrderId ? (
         <div className="rounded-xl border border-white/10 bg-card shadow-sm">
-          <div className="border-b border-white/10 px-6 py-4">
+          <div className="border-b border-white/10 px-6 py-4 flex flex-row items-center justify-between">
             <h2 className="font-semibold text-card-foreground">Select Dispatched Order</h2>
+            {orders.length > 0 && (
+              <ExportDropdown
+                filenameBase="delivery_orders"
+                title="Delivery Ready Orders"
+                headers={['Order #', 'Customer', 'Status', 'Created']}
+                rows={orders.map((o) => [o.order_number, o.customer?.customer_name || '', o.status, new Date(o.created_at).toLocaleDateString()])}
+                variant="outline"
+                className="h-8"
+              />
+            )}
           </div>
           {orders.length === 0 ? (
             <div className="p-6">
@@ -225,7 +249,7 @@ export default function DeliveryPage() {
                     </TableCell>
                     <TableCell>{new Date(o.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
-                      <Button size="sm" onClick={() => selectOrder(o.id)}>Start Delivery</Button>
+                      <Button size="lg" className="w-full sm:w-auto" onClick={() => selectOrder(o.id)}>Start Delivery</Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -247,33 +271,29 @@ export default function DeliveryPage() {
               <p className="text-sm text-muted-foreground">Order: <strong className="text-foreground">{orderDetail.order_number}</strong></p>
               <p className="text-sm text-muted-foreground">Customer: <strong className="text-foreground">{orderDetail.customer?.customer_name}</strong></p>
             </div>
-            <form onSubmit={handleScan} className="flex gap-3">
-              <Input
-                ref={inputRef}
+            <div className="mt-4">
+              <ScanField
+                onSubmit={deliverBarcode}
                 placeholder="Scan barcode..."
-                value={barcode}
-                onChange={e => setBarcode(e.target.value)}
                 autoFocus
-                className="flex-1"
+                showCamera={true}
+                disabled={scanning}
               />
-              <Button type="submit" disabled={scanning}>
-                <Search className="h-4 w-4 mr-2" /> Scan
-              </Button>
-            </form>
+            </div>
           </div>
 
           {scannedBoxes.length > 0 && (
             <div className="rounded-xl border border-white/10 bg-card shadow-sm">
-              <div className="border-b border-white/10 px-6 py-4 flex items-center justify-between">
+              <div className="border-b border-white/10 px-6 py-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
                 <h2 className="font-semibold text-card-foreground">Scanned ({scannedBoxes.length})</h2>
-                <Button onClick={() => setShowConfirm(true)} className="bg-green-600 hover:bg-green-700 text-white">
-                  Complete Delivery
+                <Button size="lg" onClick={() => setShowConfirm(true)} className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white">
+                  <PackageCheck className="h-5 w-5 mr-2" /> Finish & Deliver
                 </Button>
               </div>
               <div className="divide-y divide-white/5">
                 {scannedBoxes.map(bc => (
                   <div key={bc} className="flex items-center gap-3 px-6 py-3">
-                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
                     <span className="font-mono text-sm text-foreground">{bc}</span>
                   </div>
                 ))}
@@ -281,7 +301,7 @@ export default function DeliveryPage() {
             </div>
           )}
 
-          <Button variant="outline" onClick={() => { setSelectedOrderId(''); setOrderDetail(null); }}>
+          <Button variant="outline" size="lg" onClick={() => { setSelectedOrderId(''); setOrderDetail(null); }}>
             ← Back to Orders
           </Button>
         </div>
@@ -307,10 +327,13 @@ export default function DeliveryPage() {
                 <Label>Delivery Notes</Label>
                 <Textarea value={deliveryNotes} onChange={e => setDeliveryNotes(e.target.value)} />
               </div>
-              <div className="flex gap-3">
-                <Button type="button" variant="outline" onClick={() => setShowConfirm(false)}>Back</Button>
-                <Button type="submit" disabled={confirming} className="bg-green-600 hover:bg-green-700 text-white flex-1">
-                  {confirming ? 'Completing...' : 'Confirm Delivery'}
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button type="button" variant="outline" size="lg" onClick={() => setShowConfirm(false)} className="flex-1">
+                  Back to Scanning
+                </Button>
+                <Button type="submit" size="lg" disabled={confirming} className="flex-1 bg-green-600 hover:bg-green-700 text-white">
+                  <CheckCircle2 className="mr-2 h-5 w-5" />
+                  {confirming ? 'Completing Delivery...' : 'Confirm Delivery'}
                 </Button>
               </div>
             </form>

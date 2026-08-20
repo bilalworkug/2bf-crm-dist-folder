@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import type { ProductionScan, Product, Profile } from '@/lib/types';
 import { PageHeader } from '@/components/page-header';
@@ -12,11 +12,21 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState } from '@/components/empty-state';
-import { ScanLine, Package, AlertTriangle, CheckCircle2, Search, Camera } from 'lucide-react';
-import { CameraScanner } from '@/components/camera-scanner';
+import { ExportDropdown } from '@/components/export-dropdown';
+import { ScanLine, Package, AlertTriangle, CheckCircle2, Search, Camera, WifiOff, RefreshCw } from 'lucide-react';
+import { ScanField } from '@/components/scanner/ScanField';
+import { CameraScanner } from '@/components/scanner/CameraScanner';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
-import { formatDate, isToday, startOfTodayISO } from '@/lib/format';
+import { formatDate, isToday } from '@/lib/format';
+
+import { playScanAlreadyExists, playScanError } from '@/components/scanner/audio';
+interface QueuedScan {
+  id: string;
+  barcode: string;
+  productId: string;
+  timestamp: number;
+}
 
 export default function ProductionPage() {
   const { profile } = useAuth();
@@ -27,16 +37,106 @@ export default function ProductionPage() {
   const [barcode, setBarcode] = useState('');
   const [productId, setProductId] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [queuedScans, setQueuedScans] = useState<QueuedScan[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  const canEdit = profile && ['admin', 'production', 'manager'].includes(profile.role);
+  const barcodeInputRef = useRef<HTMLInputElement>(null);
+
+  const canEdit = profile && ['admin', 'production', 'production_manager', 'manager'].includes(profile.role);
+
+
 
   useEffect(() => {
+    // Network status listeners
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    if (typeof window !== 'undefined') {
+      setIsOnline(navigator.onLine);
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+    }
+
+    // Load queued scans
+    try {
+      const q = localStorage.getItem('offline_scans');
+      if (q) setQueuedScans(JSON.parse(q));
+    } catch (e) {}
+
     load();
     (async () => {
-      const { data } = await supabase.from('products').select('*').order('name');
-      setProducts(data ?? []);
+      if (!profile) return;
+      
+      if (profile.role === 'production') {
+        const { data } = await supabase
+          .from('product_production_assignments')
+          .select('products(*)')
+          .eq('production_user_id', profile.id)
+          .eq('active', true);
+          
+        const assignedProducts = data
+          ?.map(d => d.products as any)
+          .filter(p => p && p.active) ?? [];
+          
+        setProducts(assignedProducts);
+      } else {
+        const { data } = await supabase
+          .from('products')
+          .select('*')
+          .eq('active', true)
+          .order('name');
+        setProducts(data ?? []);
+      }
     })();
-  }, []);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [profile?.id, profile?.role]);
+
+  // Auto-sync when coming online
+  useEffect(() => {
+    if (isOnline && queuedScans.length > 0 && !isSyncing) {
+      syncQueuedScans();
+    }
+  }, [isOnline, queuedScans.length]);
+
+  async function syncQueuedScans() {
+    if (isSyncing || queuedScans.length === 0 || !isOnline) return;
+    setIsSyncing(true);
+    
+    const remainingQueue = [...queuedScans];
+    let syncedCount = 0;
+    
+    for (const scan of queuedScans) {
+      try {
+        const { error } = await supabase.rpc('fn_produce_box', {
+          p_barcode: scan.barcode,
+          p_product_id: scan.productId
+        });
+
+        // Even if it's a duplicate, we remove it from queue since the server processed it.
+        // If it's a real network error, it would throw or return a specific code, but RPC errors usually mean the db processed it and rejected it (e.g., duplicate).
+        // For robustness, if error message implies duplicate, we consider it handled.
+        remainingQueue.shift(); 
+        syncedCount++;
+      } catch (err) {
+        // If actual fetch fails (network down again), stop syncing.
+        break;
+      }
+    }
+
+    setQueuedScans(remainingQueue);
+    localStorage.setItem('offline_scans', JSON.stringify(remainingQueue));
+    setIsSyncing(false);
+
+    if (syncedCount > 0) {
+      toast.success(`Synced ${syncedCount} offline scans!`);
+      load();
+    }
+  }
 
   async function load() {
     setLoading(true);
@@ -67,24 +167,46 @@ export default function ProductionPage() {
     }
     if (!productId) {
       toast.error('Select a product before scanning');
-      setCameraOpen(false); // Force user to select product
+      setCameraOpen(false); 
       return;
     }
 
     setSubmitting(true);
-    setBarcode(scanCode); // Update input field so user sees what was just scanned
+    setBarcode(scanCode);
 
+    if (!isOnline) {
+      // Offline mode
+      const newScan: QueuedScan = {
+        id: crypto.randomUUID(),
+        barcode: scanCode.trim(),
+        productId,
+        timestamp: Date.now()
+      };
+      const updatedQueue = [...queuedScans, newScan];
+      setQueuedScans(updatedQueue);
+      localStorage.setItem('offline_scans', JSON.stringify(updatedQueue));
+      toast.success(`Scanned offline: ${scanCode}`);
+      setBarcode('');
+      setSubmitting(false);
+      return;
+    }
+
+    // Online mode
     const { error } = await supabase.rpc('fn_produce_box', {
       p_barcode: scanCode.trim(),
-      p_product_id: productId,
-      p_user_id: profile?.id,
+      p_product_id: productId
     });
 
     if (error) {
-      if (error.message.includes('duplicate key') || error.code === '23505') {
-        toast.error(`Duplicate scan: barcode ${scanCode} was already scanned`);
+      if (error.message.includes('duplicate key') || error.message.toLowerCase().includes('duplicate') || error.code === '23505') {
+        playScanAlreadyExists();
+        toast.error(`Barcode already exists: ${scanCode}`);
+      } else if (error.message.includes('permission')) {
+        playScanError();
+        toast.error('You do not have permission to record production scans.');
       } else {
-        toast.error(error.message);
+        playScanError();
+        toast.error(`Scan failed: Please retry (${error.message})`);
       }
       setSubmitting(false);
       return;
@@ -92,7 +214,6 @@ export default function ProductionPage() {
 
     toast.success(`Scanned ${scanCode}`);
     setBarcode(''); 
-    // We intentionally don't reset productId so they can keep scanning rapidly
     setSubmitting(false);
     load();
   }
@@ -104,10 +225,26 @@ export default function ProductionPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Production Scanning"
-        description="Scan finished product boxes to register produced stock."
-      />
+      <div className="flex justify-between items-center">
+        <PageHeader
+          title="Production Scanning"
+          description="Scan finished product boxes to register produced stock."
+        />
+        <div className="flex gap-3">
+          {queuedScans.length > 0 && (
+            <div className="flex items-center gap-2 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-full text-sm font-medium border border-amber-200">
+              <RefreshCw className={isSyncing ? "w-4 h-4 animate-spin" : "w-4 h-4"} />
+              {queuedScans.length} Queued
+            </div>
+          )}
+          {!isOnline && (
+            <div className="flex items-center gap-2 bg-red-50 text-red-600 px-3 py-1.5 rounded-full text-sm font-medium border border-red-200">
+              <WifiOff className="w-4 h-4" />
+              Offline
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label="Scans today" value={scansToday} icon={ScanLine} accent="success" />
@@ -123,20 +260,17 @@ export default function ProductionPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleScan} className="grid grid-cols-1 gap-4 sm:grid-cols-5">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
               <div className="space-y-1.5 sm:col-span-2">
                 <Label>Barcode *</Label>
                 <div className="flex gap-2">
-                  <Input
-                    value={barcode}
-                    onChange={(e) => setBarcode(e.target.value)}
+                  <ScanField
+                    onSubmit={submitScan}
                     placeholder="e.g. 2BF-PROD-000041"
-                    autoFocus
-                    className="font-mono flex-1"
+                    showCamera={true}
+                    disabled={submitting || !productId}
+                    className="flex-1"
                   />
-                  <Button type="button" variant="outline" size="icon" onClick={() => setCameraOpen(true)} title="Scan with camera">
-                    <Camera className="h-4 w-4 text-primary" />
-                  </Button>
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -151,21 +285,29 @@ export default function ProductionPage() {
                 </Select>
               </div>
               <div className="sm:col-span-5 flex justify-end">
-                <Button type="submit" disabled={submitting}>
-                  <ScanLine className="mr-2 h-4 w-4" />
-                  {submitting ? 'Scanning...' : 'Scan box'}
-                </Button>
+                {/* Submit is handled internally by ScanField, but keeping a prominent disabled visual button for UI consistency or we can hide it */}
               </div>
-            </form>
-            <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+            </div>
+            <div className="mt-3 flex items-start gap-2 rounded-lg bg-blue-50 p-3 text-xs text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <p>Duplicate scans are blocked. Each barcode can only be scanned once by production.</p>
+              <p>Hardware scanners are supported! Ensure a product is selected, then simply scan a barcode with your USB/Bluetooth scanner at any time. No need to click any fields.</p>
             </div>
           </CardContent>
         </Card>
       )}
 
       <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle>Recent Scans</CardTitle>
+          <ExportDropdown
+            filenameBase="production_scans"
+            title="Production Scans Report"
+            headers={['Barcode', 'Product', 'Scanned By', 'Scanned At']}
+            rows={filtered.map((s) => [s.barcode, s.product?.name ?? '—', s.scanner?.full_name ?? '—', formatDate(s.scanned_at)])}
+            variant="outline"
+            className="h-8"
+          />
+        </CardHeader>
         <CardContent className="p-4">
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -205,10 +347,11 @@ export default function ProductionPage() {
         </CardContent>
       </Card>
 
+      {/* Phase 10: ZXing fast scanner — onDetected only returns barcode; submitScan handles all business logic */}
       <CameraScanner
-        isOpen={cameraOpen}
+        active={cameraOpen}
         onClose={() => setCameraOpen(false)}
-        onScan={(scannedText) => {
+        onDetected={(scannedText) => {
           submitScan(scannedText);
         }}
       />

@@ -52,9 +52,7 @@ export default function WarehouseCorrectionsPage() {
     const { error } = await supabase.rpc('fn_correct_warehouse_box', {
       p_barcode: boxData.barcode,
       p_new_warehouse_id: newWhId,
-      p_reason: reason,
-      p_manager_id: profile.id,
-      p_manager_role: profile.role
+      p_reason: reason
     });
 
     if (error) {
