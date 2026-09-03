@@ -123,7 +123,7 @@ export function ScanField({
             disabled={disabled}
             autoComplete="off"
             spellCheck={false}
-            className="pl-9 font-mono"
+            className="pl-9 font-mono h-11 sm:h-10 text-base sm:text-sm"
             id="scan-field-input"
           />
         </div>
@@ -132,8 +132,7 @@ export function ScanField({
           type="submit"
           disabled={disabled || !value.trim()}
           variant="default"
-          size="sm"
-          className="shrink-0"
+          className="shrink-0 h-11 sm:h-10 px-4 text-xs font-semibold touch-target touch-press"
         >
           Enter
         </Button>
@@ -143,25 +142,23 @@ export function ScanField({
             <Button
               type="button"
               variant="outline"
-              size="sm"
               onClick={() => setCameraActive(false)}
-              className="shrink-0 text-slate-500"
+              className="shrink-0 text-slate-500 h-11 w-11 sm:h-10 sm:w-10 p-0 touch-target touch-press"
               title="Close camera"
             >
-              <X size={16} />
+              <X size={18} />
             </Button>
           ) : (
             <Button
               type="button"
               variant="outline"
-              size="sm"
               onClick={() => setCameraActive(true)}
               disabled={disabled}
-              className="shrink-0"
+              className="shrink-0 h-11 w-11 sm:h-10 sm:w-10 p-0 touch-target touch-press"
               title="Open camera scanner"
               id="scan-field-camera-btn"
             >
-              <Camera size={16} />
+              <Camera size={18} />
             </Button>
           )
         )}

@@ -94,6 +94,15 @@ export function CameraScanner({ onDetected, active, onClose, onDetectedExtra }: 
       // Audio
       playScanSuccess();
 
+      // Haptic vibration feedback for mobile devices
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try {
+          navigator.vibrate([60, 40, 60]);
+        } catch {
+          // Ignore if vibration permissions are restricted
+        }
+      }
+
       // Notify parent — business logic handled by page
       onDetected(code);
       onDetectedExtra?.(code);

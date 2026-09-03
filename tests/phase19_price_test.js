@@ -28,10 +28,13 @@ async function runTests() {
   }
 
   try {
-    // We will test against the first product in the DB
-    const { data: products } = await adminClient.from('products').select('*').limit(1);
-    if (!products || products.length === 0) throw new Error("No products found to test with");
-    const testProduct = products[0];
+    // Create dedicated product for isolated testing
+    const { data: testProduct, error: prodErr } = await adminClient.from('products').insert({
+      name: `Test Product ${Date.now()}`,
+      sku: `P19-${Date.now()}`,
+      active: true
+    }).select().single();
+    if (prodErr || !testProduct) throw new Error("Could not create test product: " + prodErr?.message);
 
     // 1. Admin creates price
     const { data: price1, error: err1 } = await adminClient.from('product_prices').insert({
@@ -75,6 +78,7 @@ async function runTests() {
     // Clean up created prices for testing
     if (price1) await adminClient.from('product_prices').delete().eq('id', price1.id);
     if (priceFuture) await adminClient.from('product_prices').delete().eq('id', priceFuture.id);
+    if (testProduct) await adminClient.from('products').delete().eq('id', testProduct.id);
 
   } catch (err) {
     console.error('Test Execution Error:', err);

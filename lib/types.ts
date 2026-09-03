@@ -331,13 +331,40 @@ export interface CompanySettings {
   updated_at: string;
 }
 
+export interface OrderHandover {
+  id: string;
+  order_id: string;
+  customer_id: string;
+  handover_number: string;
+  handover_date: string;
+  recipient_type: 'customer' | 'representative' | 'transporter_3pl';
+  recipient_name: string;
+  recipient_phone: string | null;
+  recipient_national_id: string | null;
+  driver_name: string | null;
+  transport_company: string | null;
+  vehicle_plate: string | null;
+  cartons_handed_over: number;
+  waybill_number: string | null;
+  notes: string | null;
+  signature_data: string | null;
+  handed_over_by: string;
+  created_at: string;
+  updated_at: string;
+  order?: Order;
+  customer?: Customer;
+  profile?: Profile;
+}
+
 export const ORDER_STATUSES = [
   'pending',
   'approved',
+  'partially_dispatched',
   'dispatched',
+  'handed_over',
+  'completed',
   'delivered',
   'partially_delivered',
-  'completed',
   'cancelled',
 ] as const;
 

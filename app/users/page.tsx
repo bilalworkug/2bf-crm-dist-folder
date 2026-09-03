@@ -243,7 +243,7 @@ export default function UsersPage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
         <StatCard label="Total users" value={users.length} icon={UserCog} accent="primary" />
         <StatCard label="Active users" value={users.filter((u) => u.active).length} icon={Shield} accent="success" />
         <StatCard label="Roles defined" value={ROLES.length} icon={Shield} accent="neutral" />
@@ -256,46 +256,89 @@ export default function UsersPage() {
               {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-14 animate-pulse rounded-md bg-muted" />)}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Warehouse</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <div className="space-y-4">
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Warehouse</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((u) => (
+                      <TableRow key={u.id}>
+                        <TableCell className="font-medium">{u.full_name ?? '—'}</TableCell>
+                        <TableCell className="text-sm">{u.email}</TableCell>
+                        <TableCell><Badge variant="info">{ROLE_LABELS[u.role]}</Badge></TableCell>
+                        <TableCell>{u.warehouse?.code ?? '—'}</TableCell>
+                        <TableCell>
+                          <Badge variant={u.active ? 'success' : 'destructive'}>{u.active ? 'Active' : 'Inactive'}</Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{formatDateShort(u.created_at)}</TableCell>
+                        <TableCell className="text-right space-x-1">
+                          <Button size="sm" variant="outline" onClick={() => openEdit(u)}>Edit</Button>
+                          {u.id !== current?.id && (
+                            <>
+                              <Button size="sm" variant="outline" onClick={() => openResetPassword(u)}>
+                                <KeyRound className="mr-1 h-3 w-3" />Reset Password
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => toggleActive(u)}>
+                                {u.active ? 'Deactivate' : 'Activate'}
+                              </Button>
+                            </>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Stacked Cards */}
+              <div className="grid grid-cols-1 gap-3 md:hidden">
                 {users.map((u) => (
-                  <TableRow key={u.id}>
-                    <TableCell className="font-medium">{u.full_name ?? '—'}</TableCell>
-                    <TableCell className="text-sm">{u.email}</TableCell>
-                    <TableCell><Badge variant="info">{ROLE_LABELS[u.role]}</Badge></TableCell>
-                    <TableCell>{u.warehouse?.code ?? '—'}</TableCell>
-                    <TableCell>
-                      <Badge variant={u.active ? 'success' : 'destructive'}>{u.active ? 'Active' : 'Inactive'}</Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{formatDateShort(u.created_at)}</TableCell>
-                    <TableCell className="text-right space-x-1">
-                      <Button size="sm" variant="outline" onClick={() => openEdit(u)}>Edit</Button>
+                  <div key={u.id} className="border border-border/80 rounded-xl p-4 bg-card shadow-sm space-y-3">
+                    <div className="flex justify-between items-start gap-2">
+                      <div>
+                        <p className="font-bold text-sm text-foreground">{u.full_name || 'Unnamed'}</p>
+                        <p className="text-xs text-muted-foreground">{u.email}</p>
+                      </div>
+                      <Badge variant={u.active ? 'success' : 'destructive'}>
+                        {u.active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+
+                    <div className="flex justify-between items-center text-xs pt-1 border-t">
+                      <Badge variant="info">{ROLE_LABELS[u.role] || u.role}</Badge>
+                      <span className="text-muted-foreground">WH: {u.warehouse?.code ?? 'None'}</span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 pt-2 border-t">
+                      <Button size="sm" variant="outline" onClick={() => openEdit(u)} className="flex-1 h-10 touch-press">
+                        Edit
+                      </Button>
                       {u.id !== current?.id && (
                         <>
-                          <Button size="sm" variant="outline" onClick={() => openResetPassword(u)}>
-                            <KeyRound className="mr-1 h-3 w-3" />Reset Password
+                          <Button size="sm" variant="outline" onClick={() => openResetPassword(u)} className="flex-1 h-10 touch-press">
+                            <KeyRound className="mr-1 h-3.5 w-3.5" /> Reset
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => toggleActive(u)}>
+                          <Button size="sm" variant="ghost" onClick={() => toggleActive(u)} className="h-10 px-2 touch-press">
                             {u.active ? 'Deactivate' : 'Activate'}
                           </Button>
                         </>
                       )}
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -318,24 +361,24 @@ export default function UsersPage() {
 
       {/* ── Edit / Create User Dialog ────────────────────────────────── */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit user' : 'New user'}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSave} className="space-y-3">
+          <form onSubmit={handleSave} className="space-y-3.5">
             <div className="space-y-1.5">
               <Label>Email *</Label>
-              <Input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} disabled={!!editing} />
+              <Input type="email" inputMode="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} disabled={!!editing} className="h-11 sm:h-10 text-base sm:text-sm" />
             </div>
             <div className="space-y-1.5">
               <Label>Full name</Label>
-              <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
+              <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="h-11 sm:h-10 text-base sm:text-sm" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Role *</Label>
                 <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as RoleKey })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-11 sm:h-10"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {ROLES.map((r) => <SelectItem key={r.key} value={r.key}>{r.name}</SelectItem>)}
                   </SelectContent>
@@ -344,7 +387,7 @@ export default function UsersPage() {
               <div className="space-y-1.5">
                 <Label>Warehouse</Label>
                 <Select value={form.warehouse_id} onValueChange={(v) => setForm({ ...form, warehouse_id: v === 'none' ? '' : v })}>
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectTrigger className="h-11 sm:h-10"><SelectValue placeholder="None" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
                     {warehouses.map((w) => <SelectItem key={w.id} value={w.id}>{w.code} — {w.name}</SelectItem>)}
@@ -355,12 +398,12 @@ export default function UsersPage() {
             {!editing && (
               <div className="space-y-1.5">
                 <Label>Password *</Label>
-                <Input type="password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                <Input type="password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="h-11 sm:h-10 text-base sm:text-sm" />
               </div>
             )}
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>Cancel</Button>
-              <Button type="submit" disabled={isSubmitting}>
+            <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting} className="w-full sm:w-auto h-11 sm:h-10">Cancel</Button>
+              <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto h-11 sm:h-10">
                 {isSubmitting ? 'Saving...' : editing ? 'Save changes' : 'Create user'}
               </Button>
             </DialogFooter>
@@ -370,7 +413,7 @@ export default function UsersPage() {
 
       {/* ── Reset Password Dialog ────────────────────────────────────── */}
       <Dialog open={resetOpen} onOpenChange={(v) => { setResetOpen(v); if (!v) { setResetUser(null); setResetPassword(''); setResetConfirmPassword(''); } }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <KeyRound className="h-5 w-5 text-primary" /> Reset Password

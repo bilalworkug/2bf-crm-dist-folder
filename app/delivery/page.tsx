@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CameraScanner } from '@/components/scanner/CameraScanner';
 import { ExportDropdown } from '@/components/export-dropdown';
 import { playScanAlreadyExists, playScanError } from '@/components/scanner/audio';
+import { StatusBadge } from '@/components/status-badge';
 
 export default function DeliveryPage() {
   const { profile } = useAuth();
@@ -46,7 +47,8 @@ export default function DeliveryPage() {
       .from('orders')
       .select('*, customer:customers(customer_name)')
       .in('status', ['dispatched', 'partially_delivered', 'approved'])
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(50);
     if (data) setOrders(data);
   }
 
@@ -227,34 +229,61 @@ export default function DeliveryPage() {
               <EmptyState title="No orders ready" description="There are no dispatched orders ready for delivery." />
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order #</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order #</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {orders.map(o => (
+                      <TableRow key={o.id}>
+                        <TableCell className="font-medium font-mono">{o.order_number}</TableCell>
+                        <TableCell>{o.customer?.customer_name}</TableCell>
+                        <TableCell>
+                          <StatusBadge status={o.status} />
+                        </TableCell>
+                        <TableCell>{new Date(o.created_at).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-right">
+                          <Button size="sm" className="w-full sm:w-auto" onClick={() => selectOrder(o.id)}>Start Delivery</Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Stacked Cards */}
+              <div className="grid grid-cols-1 gap-3 p-4 md:hidden">
                 {orders.map(o => (
-                  <TableRow key={o.id}>
-                    <TableCell className="font-medium">{o.order_number}</TableCell>
-                    <TableCell>{o.customer?.customer_name}</TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        o.status === 'dispatched' ? 'bg-blue-500/10 text-blue-500' : 'bg-amber-500/10 text-amber-500'
-                      }`}>{o.status}</span>
-                    </TableCell>
-                    <TableCell>{new Date(o.created_at).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      <Button size="lg" className="w-full sm:w-auto" onClick={() => selectOrder(o.id)}>Start Delivery</Button>
-                    </TableCell>
-                  </TableRow>
+                  <div key={o.id} className="border border-border/80 rounded-xl p-4 bg-card shadow-sm space-y-3">
+                    <div className="flex justify-between items-start gap-2">
+                      <div>
+                        <p className="font-mono font-bold text-sm text-primary">{o.order_number}</p>
+                        <p className="font-semibold text-sm text-foreground mt-0.5">{o.customer?.customer_name}</p>
+                      </div>
+                      <StatusBadge status={o.status} />
+                    </div>
+
+                    <div className="flex justify-between items-center text-xs text-muted-foreground pt-1 border-t">
+                      <span>Ready for delivery</span>
+                      <span>{new Date(o.created_at).toLocaleDateString()}</span>
+                    </div>
+
+                    <Button size="lg" className="w-full h-11 text-sm font-semibold touch-press" onClick={() => selectOrder(o.id)}>
+                      Start Delivery
+                    </Button>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
         </div>
       ) : orderDetail && !showConfirm ? (

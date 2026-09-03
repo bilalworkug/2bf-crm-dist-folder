@@ -93,7 +93,8 @@ async function runTests() {
         const { error: noPriceErr } = await salesClient.rpc('fn_create_sales_order', {
           p_customer_id: customer.id,
           p_notes: 'Test no price',
-          p_items: [{ product_id: testProd.id, quantity: 5 }]
+          p_items: [{ product_id: testProd.id, quantity: 5 }],
+          p_payment_type: 'pay_now'
         });
         assert(
           noPriceErr != null,
@@ -117,7 +118,8 @@ async function runTests() {
       p_items: [
         { product_id: product1.id, quantity: qty1 },
         { product_id: product2.id, quantity: qty2 }
-      ]
+      ],
+      p_payment_type: 'pay_now'
     });
     console.log("DEBUG TEST 2 orderId:", orderId, "createErr:", createErr);
     assert(!createErr, `Sales can create an order (${createErr?.message || 'OK'})`);
@@ -180,7 +182,8 @@ async function runTests() {
     const { data: order2Id } = await salesClient.rpc('fn_create_sales_order', {
       p_customer_id: customer.id,
       p_notes: 'New Price Test',
-      p_items: [{ product_id: product1.id, quantity: 10 }]
+      p_items: [{ product_id: product1.id, quantity: 10 }],
+      p_payment_type: 'pay_now'
     });
     const { data: items2 } = await adminClient.from('order_items').select('*').eq('order_id', order2Id);
     const newItem = items2.find(i => i.product_id === product1.id);

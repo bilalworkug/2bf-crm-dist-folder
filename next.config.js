@@ -1,15 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  distDir: 'dist',
   eslint: {
-    // Allows production builds to successfully complete even if
-    // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
-  typescript: {
-    // Optional: ignores TypeScript errors during build if needed
-    ignoreBuildErrors: true,
-  },
+  images: { unoptimized: true },
 };
 
 module.exports = nextConfig;

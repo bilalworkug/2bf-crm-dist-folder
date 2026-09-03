@@ -21,6 +21,8 @@ function SkeletonBlock({ className }: { className?: string }) {
   return <div className={`bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 animate-pulse ${className || ''}`} />;
 }
 
+import { useRealtimeDashboard } from '@/hooks/use-realtime-dashboard';
+
 export function ProductionDashboard() {
   const { profile } = useAuth();
   const [filters, setFilters] = useState<DashboardFilters>({ dateRange: 'today' });
@@ -43,6 +45,15 @@ export function ProductionDashboard() {
   };
 
   useEffect(() => { loadData(); }, [filters.dateRange]);
+
+  // Phase 25B: Realtime update on box produced or correction created
+  useRealtimeDashboard({
+    tables: [
+      { table: 'production_scans', event: 'INSERT' },
+      { table: 'correction_records' },
+    ],
+    onUpdate: loadData,
+  });
 
   // Top produced products
   const topProduced = useMemo(() => {
@@ -114,7 +125,7 @@ export function ProductionDashboard() {
 
       {loading ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {[1, 2, 3, 4].map(i => <SkeletonBlock key={i} className="h-28" />)}
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -126,7 +137,7 @@ export function ProductionDashboard() {
         <div className="space-y-6">
 
           {/* ════ 4 KPI CARDS ════ */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <DashboardKPI
               kpi={{ value: `${data.totalProduced.toLocaleString()} units`, label: 'Produced Quantity', description: 'Successfully scanned' }}
               icon={<Factory className="w-5 h-5 text-emerald-600" />}

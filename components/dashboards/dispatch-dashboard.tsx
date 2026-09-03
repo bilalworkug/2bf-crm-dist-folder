@@ -1,9 +1,10 @@
 'use client';
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { DashboardFilters } from '@/lib/dashboard/dashboard-types';
 import { fetchDashboardData, DashboardData } from '@/lib/dashboard/dashboard-queries';
-import { exportDashboardToPDF, exportDashboardToExcel } from '@/lib/dashboard/dashboard-export';
+import { exportDashboardToExcel } from '@/lib/dashboard/dashboard-export';
 import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 import { DashboardKPI } from '@/components/dashboard/dashboard-kpi';
 import { ProductPerformanceWidget } from '@/components/dashboard/product-performance';
@@ -12,12 +13,14 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Truck, Package, PackageCheck, AlertTriangle,
-  RefreshCcw, Download, Calendar, Info
+  RefreshCcw, Download, Calendar, Info, FileCheck, ArrowRight,
+  ScanLine, ClipboardList, Clock
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRealtimeDashboard } from '@/hooks/use-realtime-dashboard';
 
 function SkeletonBlock({ className }: { className?: string }) {
-  return <div className={`bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 animate-pulse ${className || ''}`} />;
+  return <div className={`bg-muted/60 rounded-lg border border-border/60 animate-pulse ${className || ''}`} />;
 }
 
 export function DispatchDashboard() {
@@ -44,152 +47,186 @@ export function DispatchDashboard() {
 
   useEffect(() => { loadData(); }, [filters.dateRange]);
 
+  // Realtime update on dispatch scan or order status change
+  useRealtimeDashboard({
+    tables: [
+      { table: 'dispatches', event: 'INSERT' },
+      { table: 'orders', event: 'UPDATE' },
+      { table: 'order_handovers', event: 'INSERT' },
+    ],
+    onUpdate: loadData,
+  });
+
   if (!profile) return null;
 
   return (
     <DashboardShell>
       {/* ════ HEADER & CONTROLS ════ */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6 pb-4 border-b border-border/80">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Dispatch Dashboard</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Welcome back, {profile.full_name || 'Dispatch User'}</p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+              Dispatch & Loading Operations
+            </h1>
+            <span className="px-2 py-0.5 rounded-md border border-sky-500/20 bg-sky-500/10 text-sky-600 dark:text-sky-400 text-xs font-semibold">
+              Loading Bay
+            </span>
+          </div>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+            Logged in as <strong className="text-foreground">{profile.full_name || 'Dispatch Supervisor'}</strong> • {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Button asChild className="h-9 text-xs font-bold gap-1.5 shadow-2xs">
+            <Link href="/dispatch">
+              <ScanLine className="h-4 w-4" />
+              <span>Open Loading Desk</span>
+            </Link>
+          </Button>
+
           <Select
             value={filters.dateRange}
             onValueChange={(v: any) => { setFilters({ ...filters, dateRange: v }); }}
           >
-            <SelectTrigger className="w-auto h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-medium">
-              <Calendar className="w-4 h-4 mr-2 text-slate-500" />
+            <SelectTrigger className="w-auto h-9 bg-card border-border/80 text-xs font-semibold">
+              <Calendar className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
               <SelectValue placeholder="Select Period" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="today">Today: {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
               <SelectItem value="yesterday">Yesterday</SelectItem>
               <SelectItem value="week">This Week</SelectItem>
               <SelectItem value="month">This Month</SelectItem>
-              <SelectItem value="quarter">This Quarter</SelectItem>
-              <SelectItem value="year">This Year</SelectItem>
             </SelectContent>
           </Select>
 
-          <Button variant="outline" onClick={loadData} className="h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-            <RefreshCcw className="w-4 h-4 mr-2 text-slate-500" />
+          <Button variant="outline" size="sm" onClick={loadData} className="h-9 bg-card border-border/80 text-xs font-semibold gap-1.5">
+            <RefreshCcw className="w-3.5 h-3.5 text-muted-foreground" />
             Refresh
           </Button>
 
-          <Button variant="outline" onClick={() => { if (data) exportDashboardToExcel(data, filters, profile?.full_name || 'User', 'Dispatch'); }} className="h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-            <Download className="w-4 h-4 mr-2 text-slate-500" />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { if (data) exportDashboardToExcel(data, filters, profile?.full_name || 'User', 'Dispatch'); }}
+            className="h-9 bg-card border-border/80 text-xs font-semibold gap-1.5"
+          >
+            <Download className="w-3.5 h-3.5 text-muted-foreground" />
             Export
           </Button>
-
-          <div className="flex items-center gap-3 ml-2 pl-4 border-l border-slate-200 dark:border-slate-800">
-            <div className="w-9 h-9 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-bold text-sm">
-              {profile.full_name?.charAt(0).toUpperCase() || 'D'}
-            </div>
-            <div className="hidden sm:block">
-              <p className="text-sm font-bold text-slate-900 dark:text-white leading-tight">{profile.full_name || 'Dispatch User'}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 leading-tight capitalize">{profile.role?.replace('_', ' ')}</p>
-            </div>
-          </div>
         </div>
       </div>
 
       {error && (
-        <div className="flex items-center gap-3 p-4 mb-6 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 shadow-sm">
+        <div className="flex items-center gap-3 p-4 mb-6 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/50 rounded-lg text-rose-700 dark:text-rose-300 shadow-2xs">
           <AlertTriangle className="w-5 h-5 shrink-0" />
-          <p className="font-medium text-sm">{error}</p>
+          <p className="font-semibold text-xs sm:text-sm">{error}</p>
         </div>
       )}
 
       {loading ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map(i => <SkeletonBlock key={i} className="h-28" />)}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[1, 2, 3, 4].map(i => <SkeletonBlock key={i} className="h-24" />)}
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <SkeletonBlock className="h-[350px]" />
-            <SkeletonBlock className="h-[350px]" />
-          </div>
+          <SkeletonBlock className="h-48" />
         </div>
       ) : data && (
         <div className="space-y-6">
 
           {/* ════ 4 KPI CARDS ════ */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
             <DashboardKPI
-              kpi={{ value: `${data.pendingOrders.toLocaleString()} orders`, label: 'Orders Ready for Dispatch', description: 'Pending dispatch', status: data.pendingOrders > 0 ? 'warning' : 'neutral' }}
-              icon={<Package className="w-5 h-5 text-indigo-600" />}
-              iconBgClass="bg-indigo-100 border-transparent text-indigo-600"
+              kpi={{ value: `${data.pendingOrders.toLocaleString()} orders`, label: 'Orders in Dispatch Queue', description: 'Pending or loading', status: data.pendingOrders > 0 ? 'warning' : 'neutral' }}
+              icon={<Package className="w-4 h-4 text-indigo-600" />}
+              iconBgClass="bg-indigo-500/10 border-indigo-500/20 text-indigo-600"
             />
             <DashboardKPI
-              kpi={{ value: `${data.totalInStock.toLocaleString()} units`, label: 'Available Product Quantity', description: 'Units ready to dispatch' }}
-              icon={<PackageCheck className="w-5 h-5 text-emerald-600" />}
-              iconBgClass="bg-emerald-100 border-transparent text-emerald-600"
+              kpi={{ value: `${data.totalInStock.toLocaleString()} units`, label: 'Warehouse Stock Available', description: 'Available for loading' }}
+              icon={<PackageCheck className="w-4 h-4 text-emerald-600" />}
+              iconBgClass="bg-emerald-500/10 border-emerald-500/20 text-emerald-600"
             />
             <DashboardKPI
-              kpi={{ value: `${data.totalDispatched.toLocaleString()} units`, label: 'Dispatched Quantity Today', description: 'Total units dispatched' }}
-              icon={<Truck className="w-5 h-5 text-blue-600" />}
-              iconBgClass="bg-blue-100 border-transparent text-blue-600"
+              kpi={{ value: `${data.totalDispatched.toLocaleString()} units`, label: 'Cartons Dispatched Today', description: 'Total units loaded on trucks' }}
+              icon={<Truck className="w-4 h-4 text-sky-600" />}
+              iconBgClass="bg-sky-500/10 border-sky-500/20 text-sky-600"
             />
             <DashboardKPI
-              kpi={{ value: '0 records', label: 'Exception Records', description: 'Failed or reversed dispatches' }}
-              icon={<AlertTriangle className="w-5 h-5 text-rose-600" />}
-              iconBgClass="bg-rose-100 border-transparent text-rose-600"
+              kpi={{ value: 'Single-Source', label: 'Stock Deduction Point', description: 'Deducted strictly at dispatch scan' }}
+              icon={<FileCheck className="w-4 h-4 text-purple-600" />}
+              iconBgClass="bg-purple-500/10 border-purple-500/20 text-purple-600"
             />
           </div>
 
-          {/* ════ PRODUCT PERFORMANCE & QUICK ACTIONS ════ */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            <div className="col-span-full xl:col-span-3">
-              <ProductPerformanceWidget data={data.productPerformance} />
-            </div>
-
-            {/* Quick Actions */}
-            <Card className="shadow-sm border-slate-200 flex flex-col">
-              <CardHeader className="pb-3 border-b border-slate-100">
-                <CardTitle className="text-sm font-bold text-slate-800">Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 grid grid-cols-1 gap-3 flex-1 content-start">
-                <Link href="/dispatch" className="flex items-center gap-2 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
-                  <Truck className="w-4 h-4 text-amber-500 shrink-0" />
-                  <span className="text-xs font-medium text-slate-700">Dispatch Stock</span>
-                </Link>
-                <Link href="/dispatch/corrections" className="flex items-center gap-2 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
-                  <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
-                  <span className="text-xs font-medium text-slate-700">Manage Corrections</span>
-                </Link>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* ════ BOTTOM ALERT BARS ════ */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="flex items-center justify-between p-3 rounded-lg border border-amber-200 bg-amber-50">
-              <div className="flex items-center gap-2 min-w-0">
-                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
-                <span className="text-sm font-semibold text-amber-900 truncate">
-                  {data.pendingOrders > 0
-                    ? `${data.pendingOrders} order(s) awaiting dispatch`
-                    : 'No pending orders'}
-                </span>
+          {/* ════ OPERATIONAL SHORTCUT CARDS ════ */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <Link
+              href="/dispatch"
+              className="group flex flex-col justify-between p-4 rounded-lg border border-border/80 bg-card hover:border-primary/50 transition-all shadow-xs"
+            >
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <div className="p-2 rounded-md bg-primary/10 text-primary border border-primary/20">
+                    <ScanLine className="h-4 w-4" />
+                  </div>
+                  <h3 className="text-sm font-bold text-foreground">1. Carton Loading Scan</h3>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Scan cartons at loading dock with camera or hardware barcode reader. Stock is deducted immediately.
+                </p>
               </div>
-              <Link href="/dispatch" className="text-xs font-semibold px-3 py-1.5 rounded bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors whitespace-nowrap ml-2 shrink-0">View Orders</Link>
-            </div>
-
-            <div className="flex items-center justify-between p-3 rounded-lg border border-blue-200 bg-blue-50">
-              <div className="flex items-center gap-2 min-w-0">
-                <Info className="w-5 h-5 text-blue-600 shrink-0" />
-                <span className="text-sm font-semibold text-blue-900 truncate">
-                  {data.totalDispatched > 0
-                    ? `${data.totalDispatched} boxes dispatched this period`
-                    : 'No dispatch activity recorded yet'}
-                </span>
+              <div className="mt-4 pt-2.5 border-t border-border/40 flex items-center justify-between text-xs font-semibold text-primary">
+                <span>Start Scanning</span>
+                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
               </div>
-              <Link href="/dispatch" className="text-xs font-semibold px-3 py-1.5 rounded bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors whitespace-nowrap ml-2 shrink-0">Dispatch Now</Link>
-            </div>
+            </Link>
+
+            <Link
+              href="/dispatch"
+              className="group flex flex-col justify-between p-4 rounded-lg border border-border/80 bg-card hover:border-purple-500/50 transition-all shadow-xs"
+            >
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <div className="p-2 rounded-md bg-purple-500/10 text-purple-600 border border-purple-500/20">
+                    <FileCheck className="h-4 w-4" />
+                  </div>
+                  <h3 className="text-sm font-bold text-foreground">2. Gate Handover & Waybill</h3>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Record driver details, license plate, 3PL company, and print official A4 Gate Pass / Waybill.
+                </p>
+              </div>
+              <div className="mt-4 pt-2.5 border-t border-border/40 flex items-center justify-between text-xs font-semibold text-purple-600 dark:text-purple-400">
+                <span>Issue Gate Pass</span>
+                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+              </div>
+            </Link>
+
+            <Link
+              href="/handover"
+              className="group flex flex-col justify-between p-4 rounded-lg border border-border/80 bg-card hover:border-amber-500/50 transition-all shadow-xs"
+            >
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <div className="p-2 rounded-md bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                    <ClipboardList className="h-4 w-4" />
+                  </div>
+                  <h3 className="text-sm font-bold text-foreground">3. Shift Handover Notes</h3>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Log operational handover notes and equipment status for the incoming loading crew.
+                </p>
+              </div>
+              <div className="mt-4 pt-2.5 border-t border-border/40 flex items-center justify-between text-xs font-semibold text-amber-600 dark:text-amber-400">
+                <span>Log Shift Notes</span>
+                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+              </div>
+            </Link>
           </div>
+
+          {/* ════ PRODUCT PERFORMANCE ════ */}
+          <ProductPerformanceWidget data={data.productPerformance} />
 
         </div>
       )}

@@ -23,16 +23,16 @@ const ACCENTS: Record<NonNullable<StatCardProps['accent']>, string> = {
 export function StatCard({ label, value, icon: Icon, hint, trend, accent = 'primary' }: StatCardProps) {
   return (
     <Card className="overflow-hidden">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-muted-foreground">{label}</p>
-            <p className="mt-1.5 text-2xl font-bold tracking-tight text-foreground">{value}</p>
-            {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+      <CardContent className="p-3.5 sm:p-5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">{label}</p>
+            <p className="mt-1 text-lg sm:text-2xl font-bold tracking-tight text-foreground truncate">{value}</p>
+            {hint && <p className="mt-0.5 text-[11px] sm:text-xs text-muted-foreground truncate">{hint}</p>}
           </div>
           {Icon && (
-            <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', ACCENTS[accent])}>
-              <Icon className="h-5 w-5" />
+            <div className={cn('flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg border border-border/40', ACCENTS[accent])}>
+              <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
           )}
         </div>

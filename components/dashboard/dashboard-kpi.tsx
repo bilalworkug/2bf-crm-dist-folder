@@ -45,16 +45,16 @@ export function DashboardKPI({ kpi, icon, iconBgClass, onClick, className }: Das
       )}
       onClick={onClick}
     >
-      <CardContent className="p-5 flex flex-col justify-between h-full relative z-10">
-        <div className="flex justify-between items-start">
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{kpi.label}</p>
-            <p className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+      <CardContent className="p-3.5 sm:p-5 flex flex-col justify-between h-full relative z-10">
+        <div className="flex justify-between items-start gap-2">
+          <div className="space-y-1 min-w-0 flex-1">
+            <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 truncate">{kpi.label}</p>
+            <p className="text-lg sm:text-2xl lg:text-3xl font-bold tracking-tight text-slate-900 dark:text-white truncate">
               {kpi.value}
             </p>
           </div>
           {icon && (
-            <div className={cn("p-2.5 rounded-xl shadow-sm border", iconBgClass || "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-500")}>
+            <div className={cn("p-2 sm:p-2.5 rounded-lg shadow-2xs border shrink-0", iconBgClass || "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-500")}>
               {icon}
             </div>
           )}

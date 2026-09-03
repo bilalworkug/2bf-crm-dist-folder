@@ -15,15 +15,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Package, Truck, Wallet, ShoppingCart, Download, DollarSign, Calendar, Upload, FileText, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { ArrowLeft, Package, Truck, Wallet, ShoppingCart, Download, DollarSign, Calendar, Upload, FileText, CheckCircle, CheckCircle2, XCircle, Clock, FileCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatMoney } from '@/lib/format';
 import { generatePDFReport } from '@/lib/pdf-export';
-import { ORDER_STATUSES } from '@/lib/types';
+import { ORDER_STATUSES, type OrderHandover } from '@/lib/types';
+import { generateWaybillPDF } from '@/lib/waybill-export';
 import { ExportDropdown } from '@/components/export-dropdown';
+import { WorkflowProgress } from '@/components/workflow-progress';
+import { cn } from '@/lib/utils';
 
 export default function OrderDetailClient() {
   const searchParams = useSearchParams();
@@ -35,10 +38,22 @@ export default function OrderDetailClient() {
   const [dispatches, setDispatches] = useState<(Dispatch & { warehouse?: Warehouse; product?: Product })[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [paymentDocs, setPaymentDocs] = useState<PaymentDocument[]>([]);
+  const [handovers, setHandovers] = useState<(OrderHandover & { profile?: Profile })[]>([]);
   const [loading, setLoading] = useState(true);
+  const [completingOrder, setCompletingOrder] = useState(false);
 
   const canEditOrder = profile && ['admin', 'sales', 'dispatch', 'accounts', 'manager'].includes(profile.role);
   const isAccountOrAdmin = profile && ['admin', 'accounts', 'accounts_manager'].includes(profile.role);
+  const canManageCompletion = profile && ['admin', 'manager', 'dispatch_manager', 'accounts_manager'].includes(profile.role);
+
+  // Fulfillment Calculations (Phase 29)
+  const totalOrdered = items.reduce((sum, it) => sum + (it.quantity || 0), 0);
+  const totalDispatched = dispatches.length;
+  const totalRemaining = Math.max(0, totalOrdered - totalDispatched);
+  const fulfillmentPercent = totalOrdered > 0 ? Math.min(100, Math.round((totalDispatched / totalOrdered) * 1000) / 10) : 0;
+  const isFullyDispatched = totalOrdered > 0 && totalRemaining === 0;
+  const hasHandover = handovers.length > 0;
+  const isEligibleForCompletion = isFullyDispatched && hasHandover && order?.status !== 'completed';
 
   // Modals state
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -72,8 +87,10 @@ export default function OrderDetailClient() {
       const { data: its } = await supabase.from('order_items').select('*, product:products(*), warehouse:warehouses(*)').eq('order_id', id);
       const { data: allocations } = await supabase.from('order_box_allocations').select('barcode, boxes!inner(product_id)').eq('order_id', id);
       const { data: dis } = await supabase.from('dispatches').select('*, warehouse:warehouses(*), product:products(*)').eq('order_id', id).order('dispatched_at', { ascending: false });
+      const { data: hoData } = await supabase.from('order_handovers').select('*, profile:profiles!handed_over_by(*)').eq('order_id', id).order('created_at', { ascending: false });
 
       setDispatches((dis ?? []) as any);
+      setHandovers((hoData ?? []) as any);
 
       const itemsMapped = its?.map((item: any) => {
         const allocated_count = allocations?.filter((a: any) => a.boxes?.product_id === item.product_id).length || 0;
@@ -88,6 +105,55 @@ export default function OrderDetailClient() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleCompleteOrder() {
+    if (!order) return;
+    setCompletingOrder(true);
+    try {
+      const { data, error } = await supabase.rpc('fn_complete_order', {
+        p_order_id: order.id,
+        p_notes: 'Closed via Order Detail Desk'
+      });
+      if (error) throw error;
+      toast.success(`Order ${order.order_number} successfully marked COMPLETED!`);
+      loadData();
+    } catch (err: any) {
+      toast.error('Completion blocked: ' + err.message);
+    } finally {
+      setCompletingOrder(false);
+    }
+  }
+
+  function handleDownloadOrderWaybill() {
+    if (!order) return;
+    const ho = handovers[0];
+    generateWaybillPDF({
+      waybillNumber: ho?.waybill_number || ho?.handover_number || `WB-${order.order_number}`,
+      handoverNumber: ho?.handover_number || 'N/A',
+      orderNumber: order.order_number,
+      orderDate: formatDate(order.created_at),
+      customerName: order.customer?.customer_name || 'Customer',
+      customerCompany: order.customer?.company_name,
+      customerPhone: order.customer?.phone,
+      customerLocation: order.customer?.location,
+      recipientType: ho?.recipient_type || 'customer',
+      recipientName: ho?.recipient_name || 'Receiver',
+      recipientPhone: ho?.recipient_phone,
+      driverName: ho?.driver_name,
+      transportCompany: ho?.transport_company,
+      vehiclePlate: ho?.vehicle_plate,
+      notes: ho?.notes,
+      items: items.map((it) => ({
+        sku: it.product?.sku || 'SKU',
+        productName: it.product?.name || 'Product',
+        cartonsDispatched: it.dispatched_count || 0,
+      })),
+      totalCartons: totalDispatched,
+      dispatcherName: profile?.full_name || 'Dispatch Staff',
+      dispatcherRole: profile?.role?.replace(/_/g, ' '),
+    });
+    toast.success('Waybill / Gate Pass PDF downloaded.');
   }
 
   async function fetchPayments() {
@@ -385,6 +451,42 @@ export default function OrderDetailClient() {
         description={`Created ${formatDate(order.created_at)}`}
         actions={
           <div className="flex flex-wrap gap-2 items-center">
+            {hasHandover && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadOrderWaybill}
+                className="h-9 text-xs font-semibold"
+              >
+                <Download className="h-3.5 w-3.5 mr-1" />
+                Waybill PDF
+              </Button>
+            )}
+
+            {canManageCompletion && order.status !== 'completed' && (
+              <Button
+                size="sm"
+                onClick={handleCompleteOrder}
+                disabled={completingOrder || !isEligibleForCompletion}
+                className={cn(
+                  'h-9 text-xs font-bold transition-all',
+                  isEligibleForCompletion
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+                    : 'bg-muted text-muted-foreground border border-border/80'
+                )}
+                title={
+                  !isFullyDispatched
+                    ? `Cannot complete: partial dispatch (${totalDispatched}/${totalOrdered} cartons loaded)`
+                    : !hasHandover
+                    ? 'Cannot complete: Gate Handover not yet recorded'
+                    : 'Finalize & Close Order'
+                }
+              >
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                {completingOrder ? 'Completing...' : 'Complete Order'}
+              </Button>
+            )}
+
             <ExportDropdown
               filenameBase={`order_${order.order_number}`}
               title={`Order ${order.order_number}`}
@@ -398,7 +500,7 @@ export default function OrderDetailClient() {
                 <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {ORDER_STATUSES.map((s) => (
-                    <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
+                    <SelectItem key={s} value={s} className="capitalize">{s.replace(/_/g, ' ')}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -407,8 +509,11 @@ export default function OrderDetailClient() {
         }
       />
 
+      {/* PHASE 27: Live Automatic Workflow Progress */}
+      <WorkflowProgress order={order} payments={payments} dispatches={dispatches} />
+
       {/* PHASE 20 UX: Financial Snapshot */}
-      <Card className="border-l-4 border-l-primary shadow-sm bg-blue-50/30">
+      <Card className="border-l-4 border-l-primary shadow-xs bg-card">
           <CardHeader className="pb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
               <div>
                   <CardTitle className="text-lg flex items-center"><DollarSign className="w-5 h-5 mr-2 text-primary"/> Financial Snapshot</CardTitle>
@@ -518,22 +623,41 @@ export default function OrderDetailClient() {
                           <TableHead>Product</TableHead>
                           <TableHead className="text-center">Ordered</TableHead>
                           <TableHead className="text-center text-blue-600">Allocated</TableHead>
-                          <TableHead className="text-center text-green-600">Dispatched</TableHead>
+                          <TableHead className="text-center text-primary font-bold">Dispatched</TableHead>
                           <TableHead className="text-center">Remaining</TableHead>
+                          <TableHead className="text-center">Fulfillment</TableHead>
                           <TableHead className="text-right">Unit price</TableHead>
                           <TableHead className="text-right">Subtotal</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {items.map((it) => {
-                          const remaining = it.quantity - it.allocated_count;
+                          const remainingToDispatch = Math.max(0, it.quantity - it.dispatched_count);
+                          const fPercent = it.quantity > 0 ? Math.round((it.dispatched_count / it.quantity) * 100) : 0;
                           return (
                             <TableRow key={it.id}>
-                              <TableCell className="font-medium">{it.product?.name ?? '—'}</TableCell>
-                              <TableCell className="text-center font-bold">{it.quantity}</TableCell>
-                              <TableCell className="text-center text-blue-600 font-bold">{it.allocated_count}</TableCell>
-                              <TableCell className="text-center text-green-600 font-bold">{it.dispatched_count}</TableCell>
-                              <TableCell className="text-center text-muted-foreground">{remaining > 0 ? remaining : 0}</TableCell>
+                              <TableCell className="font-medium">
+                                {it.product?.name ?? '—'}
+                                {it.product?.sku && <span className="text-[10px] text-muted-foreground font-mono block">SKU: {it.product.sku}</span>}
+                              </TableCell>
+                              <TableCell className="text-center font-bold font-mono">{it.quantity}</TableCell>
+                              <TableCell className="text-center text-blue-600 font-bold font-mono">{it.allocated_count}</TableCell>
+                              <TableCell className="text-center text-primary font-bold font-mono">{it.dispatched_count}</TableCell>
+                              <TableCell className="text-center font-mono">
+                                {remainingToDispatch === 0 ? (
+                                  <span className="text-emerald-600 font-bold">0</span>
+                                ) : (
+                                  <span className="text-amber-600 font-bold">{remainingToDispatch}</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <span className={cn(
+                                  'text-[10px] font-bold px-2 py-0.5 rounded-md border',
+                                  fPercent === 100 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 border-emerald-200/60' : fPercent > 0 ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 border-amber-200/60' : 'bg-muted text-muted-foreground border-border/40'
+                                )}>
+                                  {fPercent}%
+                                </span>
+                              </TableCell>
                               <TableCell className="text-right">{formatMoney(it.unit_price)} ETB</TableCell>
                               <TableCell className="text-right font-medium">{formatMoney(it.quantity * it.unit_price)} ETB</TableCell>
                             </TableRow>
@@ -544,23 +668,105 @@ export default function OrderDetailClient() {
                   </div>
                   <div className="grid grid-cols-1 gap-4 md:hidden">
                     {items.map((it) => {
-                      const remaining = it.quantity - it.allocated_count;
+                      const remainingToDispatch = Math.max(0, it.quantity - it.dispatched_count);
+                      const fPercent = it.quantity > 0 ? Math.round((it.dispatched_count / it.quantity) * 100) : 0;
                       return (
-                        <div key={it.id} className="border rounded-md p-4 bg-white shadow-sm flex flex-col space-y-2">
-                          <div className="font-medium text-lg text-primary border-b pb-2">{it.product?.name ?? '—'}</div>
+                        <div key={it.id} className="rounded-lg border border-border/80 p-3.5 bg-card text-card-foreground shadow-2xs flex flex-col space-y-2">
+                          <div className="font-medium text-lg text-primary border-b pb-2 flex items-center justify-between">
+                            <span>{it.product?.name ?? '—'}</span>
+                            <span className="text-xs font-mono font-bold bg-muted px-2 py-0.5 rounded-md border border-border/60">{fPercent}%</span>
+                          </div>
                           <div className="grid grid-cols-2 gap-2 text-sm pt-2">
-                            <div><span className="text-muted-foreground block text-xs">Ordered</span><span className="font-bold text-base">{it.quantity}</span></div>
-                            <div><span className="text-muted-foreground block text-xs">Remaining</span><span className="font-bold text-base text-gray-700">{remaining > 0 ? remaining : 0}</span></div>
-                            <div><span className="text-muted-foreground block text-xs">Allocated</span><span className="font-bold text-base text-blue-600">{it.allocated_count}</span></div>
-                            <div><span className="text-muted-foreground block text-xs">Dispatched</span><span className="font-bold text-base text-green-600">{it.dispatched_count}</span></div>
+                            <div><span className="text-muted-foreground block text-xs">Ordered</span><span className="font-bold text-base font-mono">{it.quantity}</span></div>
+                            <div><span className="text-muted-foreground block text-xs">Remaining to Dispatch</span><span className="font-bold text-base font-mono text-amber-600">{remainingToDispatch}</span></div>
+                            <div><span className="text-muted-foreground block text-xs">Allocated</span><span className="font-bold text-base font-mono text-blue-600">{it.allocated_count}</span></div>
+                            <div><span className="text-muted-foreground block text-xs">Dispatched (Stock Out)</span><span className="font-bold text-base font-mono text-primary">{it.dispatched_count}</span></div>
                           </div>
                           <div className="grid grid-cols-2 gap-2 pt-3 border-t mt-2 text-sm">
                             <div><span className="text-muted-foreground block text-xs">Unit Price</span>{formatMoney(it.unit_price)} ETB</div>
                             <div className="text-right"><span className="text-muted-foreground block text-xs">Subtotal</span><span className="font-bold text-base">{formatMoney(it.quantity * it.unit_price)} ETB</span></div>
                           </div>
                         </div>
-                      )
+                      );
                     })}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* PHASE 29: Dispatch Handover & Waybill Card */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <FileCheck className="h-4 w-4 text-primary" /> Dispatch Handover & Gate Pass (Waybill)
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Physical custody transfer records at the factory gate
+                </CardDescription>
+              </div>
+              {hasHandover && (
+                <Button size="sm" variant="outline" onClick={handleDownloadOrderWaybill} className="h-8 text-xs font-semibold">
+                  <Download className="h-3.5 w-3.5 mr-1" /> Download Waybill PDF
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              {handovers.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-6 text-center space-y-2">
+                  <Truck className="h-7 w-7 text-muted-foreground mx-auto" />
+                  <p className="text-xs font-semibold">No Custody Handover Recorded Yet</p>
+                  <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
+                    {totalDispatched > 0
+                      ? `This order has ${totalDispatched} cartons dispatched. Custody transfer must be recorded at the factory loading gate to complete the order.`
+                      : 'Cartons must be physically scanned and dispatched first before gate handover can take place.'}
+                  </p>
+                  {totalDispatched > 0 && (
+                    <div className="pt-2">
+                      <Link href="/dispatch">
+                        <Button size="sm" variant="secondary" className="h-8 text-xs font-semibold">
+                          Go to Dispatch Desk
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="rounded-lg border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="text-xs bg-muted/30">
+                          <TableHead>Waybill / Handover #</TableHead>
+                          <TableHead>Receiver</TableHead>
+                          <TableHead>Driver / Transport</TableHead>
+                          <TableHead>Vehicle Plate</TableHead>
+                          <TableHead className="text-center">Cartons</TableHead>
+                          <TableHead>Date</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {handovers.map((ho) => (
+                          <TableRow key={ho.id} className="text-xs">
+                            <TableCell className="font-mono font-bold text-primary">
+                              {ho.waybill_number || ho.handover_number}
+                            </TableCell>
+                            <TableCell>
+                              <span className="font-semibold block">{ho.recipient_name}</span>
+                              <span className="text-[10px] text-muted-foreground capitalize">({ho.recipient_type.replace(/_/g, ' ')})</span>
+                            </TableCell>
+                            <TableCell>
+                              {ho.driver_name || '—'}
+                              {ho.transport_company && <span className="text-[10px] text-muted-foreground block">{ho.transport_company}</span>}
+                            </TableCell>
+                            <TableCell className="font-mono">{ho.vehicle_plate || '—'}</TableCell>
+                            <TableCell className="text-center font-bold font-mono text-emerald-600">{ho.cartons_handed_over}</TableCell>
+                            <TableCell className="text-muted-foreground whitespace-nowrap">{formatDate(ho.created_at)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
                 </div>
               )}

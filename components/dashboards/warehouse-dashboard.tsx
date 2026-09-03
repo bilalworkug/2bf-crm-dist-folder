@@ -21,6 +21,8 @@ function SkeletonBlock({ className }: { className?: string }) {
   return <div className={`bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 animate-pulse ${className || ''}`} />;
 }
 
+import { useRealtimeDashboard } from '@/hooks/use-realtime-dashboard';
+
 export function WarehouseDashboard() {
   const { profile } = useAuth();
   const [filters, setFilters] = useState<DashboardFilters>({ dateRange: 'today' });
@@ -44,6 +46,16 @@ export function WarehouseDashboard() {
   };
 
   useEffect(() => { loadData(); }, [filters.dateRange]);
+
+  // Phase 25B: Realtime update on stock received, transferred, or adjusted
+  useRealtimeDashboard({
+    tables: [
+      { table: 'warehouse_receipts', event: 'INSERT' },
+      { table: 'stock_movements', event: 'INSERT' },
+      { table: 'boxes', event: 'UPDATE' },
+    ],
+    onUpdate: loadData,
+  });
 
   if (!profile) return null;
 
@@ -111,7 +123,7 @@ export function WarehouseDashboard() {
 
       {loading ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {[1, 2, 3, 4].map(i => <SkeletonBlock key={i} className="h-28" />)}
           </div>
           <SkeletonBlock className="h-[300px]" />
@@ -121,7 +133,7 @@ export function WarehouseDashboard() {
         <div className="space-y-6">
 
           {/* ════ 4 KPI CARDS ════ */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <DashboardKPI
               kpi={{ value: `${totalAvailable.toLocaleString()} units`, label: 'Available Quantity', description: 'Units ready for dispatch' }}
               icon={<Package className="w-5 h-5 text-indigo-600" />}

@@ -21,9 +21,15 @@ const ACTIONS = [
   'customer_created', 'return_processed', 'approval_requested',
 ];
 
+import { RefreshCw } from 'lucide-react';
+
+const PAGE_SIZE = 50;
+
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState<(AuditLog & { profile?: Profile | null; warehouse?: Warehouse; product?: Product })[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [search, setSearch] = useState('');
   const [actionFilter, setActionFilter] = useState('all');
   const [userFilter, setUserFilter] = useState('all');
@@ -43,9 +49,31 @@ export default function AuditLogsPage() {
       .from('audit_logs')
       .select('*, profile:profiles!audit_logs_user_id_fkey(*), warehouse:warehouses(*), product:products(*)')
       .order('created_at', { ascending: false })
-      .limit(200);
-    setLogs((data ?? []) as (AuditLog & { profile?: Profile | null; warehouse?: Warehouse; product?: Product })[]);
+      .range(0, PAGE_SIZE - 1);
+    const items = (data ?? []) as (AuditLog & { profile?: Profile | null; warehouse?: Warehouse; product?: Product })[];
+    setLogs(items);
+    setHasMore(items.length === PAGE_SIZE);
     setLoading(false);
+  }
+
+  async function loadMore() {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const start = logs.length;
+    const end = start + PAGE_SIZE - 1;
+
+    const { data } = await supabase
+      .from('audit_logs')
+      .select('*, profile:profiles!audit_logs_user_id_fkey(*), warehouse:warehouses(*), product:products(*)')
+      .order('created_at', { ascending: false })
+      .range(start, end);
+
+    const newItems = (data ?? []) as (AuditLog & { profile?: Profile | null; warehouse?: Warehouse; product?: Product })[];
+    if (newItems.length > 0) {
+      setLogs((prev) => [...prev, ...newItems]);
+    }
+    setHasMore(newItems.length === PAGE_SIZE);
+    setLoadingMore(false);
   }
 
   const filtered = useMemo(() => {
@@ -144,32 +172,52 @@ export default function AuditLogsPage() {
           ) : filtered.length === 0 ? (
             <EmptyState title="No audit logs found" icon={ScrollText} />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Time</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Barcode</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Warehouse</TableHead>
-                  <TableHead>Entity</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((l) => (
-                  <TableRow key={l.id}>
-                    <TableCell className="text-sm text-muted-foreground">{formatDate(l.created_at)}</TableCell>
-                    <TableCell className="text-sm font-medium">{l.profile?.full_name ?? 'System'}</TableCell>
-                    <TableCell className="capitalize">{l.action.replace(/_/g, ' ')}</TableCell>
-                    <TableCell className="font-mono text-sm">{l.barcode ?? '—'}</TableCell>
-                    <TableCell className="text-sm">{l.product?.name ?? '—'}</TableCell>
-                    <TableCell>{l.warehouse?.code ?? '—'}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{l.entity_type ?? '—'}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Time</TableHead>
+                      <TableHead>User</TableHead>
+                      <TableHead>Action</TableHead>
+                      <TableHead>Barcode</TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Warehouse</TableHead>
+                      <TableHead>Entity</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((l) => (
+                      <TableRow key={l.id}>
+                        <TableCell className="text-sm text-muted-foreground">{formatDate(l.created_at)}</TableCell>
+                        <TableCell className="text-sm font-medium">{l.profile?.full_name ?? 'System'}</TableCell>
+                        <TableCell className="capitalize">{l.action.replace(/_/g, ' ')}</TableCell>
+                        <TableCell className="font-mono text-sm">{l.barcode ?? '—'}</TableCell>
+                        <TableCell className="text-sm">{l.product?.name ?? '—'}</TableCell>
+                        <TableCell>{l.warehouse?.code ?? '—'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{l.entity_type ?? '—'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {hasMore && (
+                <div className="mt-4 flex justify-center border-t border-slate-100 dark:border-slate-800 pt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                    className="min-w-[140px]"
+                  >
+                    {loadingMore ? (
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin mr-2" />
+                    ) : null}
+                    {loadingMore ? 'Loading...' : 'Load More Audit Logs'}
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

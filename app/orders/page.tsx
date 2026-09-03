@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState } from '@/components/empty-state';
-import { ShoppingCart, Plus, Search, Clock, CheckCircle2, XCircle, Download, Trash2 } from 'lucide-react';
+import { ShoppingCart, Plus, Search, Clock, CheckCircle2, XCircle, Download, Trash2, Truck } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -24,6 +24,7 @@ import { useAuth } from '@/lib/auth';
 import { formatDateShort, formatMoney } from '@/lib/format';
 import { ORDER_STATUSES } from '@/lib/types';
 import { ExportDropdown } from '@/components/export-dropdown';
+import { SavedViewsBar } from '@/components/saved-views-bar';
 
 export default function OrdersPage() {
   const { profile } = useAuth();
@@ -373,15 +374,30 @@ export default function OrdersPage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total orders" value={orders.length} icon={ShoppingCart} accent="primary" />
-        <StatCard label="Pending" value={orders.filter((o) => o.status === 'pending').length} icon={Clock} accent="warning" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2.5 sm:gap-3">
+        <StatCard label="Total Orders" value={orders.length} icon={ShoppingCart} accent="primary" />
+        <StatCard label="Pending / Cleared" value={orders.filter((o) => o.status === 'pending' || o.status === 'approved').length} icon={Clock} accent="warning" />
+        <StatCard label="In Dispatch" value={orders.filter((o) => o.status === 'dispatched' || o.status === 'partially_dispatched').length} icon={Truck} accent="neutral" />
+        <StatCard label="Handed Over" value={orders.filter((o) => o.status === 'handed_over').length} icon={CheckCircle2} accent="primary" />
         <StatCard label="Completed" value={orders.filter((o) => o.status === 'completed').length} icon={CheckCircle2} accent="success" />
-        <StatCard label="Cancelled" value={orders.filter((o) => o.status === 'cancelled').length} icon={XCircle} accent="destructive" />
       </div>
 
       <Card>
         <CardContent className="p-4">
+          <SavedViewsBar
+            storageKey="orders"
+            views={[
+              { id: 'all', label: 'All Orders', badge: orders.length },
+              { id: 'pending', label: 'Pending / Cleared', badge: orders.filter((o) => o.status === 'pending' || o.status === 'approved').length },
+              { id: 'dispatched', label: 'Dispatched', badge: orders.filter((o) => o.status === 'dispatched' || o.status === 'partially_dispatched').length },
+              { id: 'handed_over', label: 'Handed Over', badge: orders.filter((o) => o.status === 'handed_over').length },
+              { id: 'completed', label: 'Completed', badge: orders.filter((o) => o.status === 'completed').length },
+            ]}
+            activeView={statusFilter}
+            onSelectView={(v) => setStatusFilter(v)}
+            className="mb-3.5 pb-2 border-b border-border/50"
+          />
+
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -392,7 +408,7 @@ export default function OrdersPage() {
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
                 {ORDER_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
+                  <SelectItem key={s} value={s} className="capitalize">{s.replace(/_/g, ' ')}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -438,7 +454,7 @@ export default function OrdersPage() {
               </div>
               <div className="grid grid-cols-1 gap-4 md:hidden">
                 {filtered.map((o) => (
-                  <div key={o.id} className="border rounded-md p-4 bg-white shadow-sm flex flex-col space-y-2 cursor-pointer" onClick={() => router.push(`/orders/detail?id=${o.id}`)}>
+                  <div key={o.id} className="rounded-lg border border-border/80 p-3.5 bg-card text-card-foreground shadow-2xs flex flex-col space-y-2 cursor-pointer hover:border-primary/50 transition-colors" onClick={() => router.push(`/orders/detail?id=${o.id}`)}>
                     <div className="flex justify-between items-center">
                       <span className="font-mono font-semibold text-primary">{o.order_number}</span>
                       <StatusBadge status={o.status} />

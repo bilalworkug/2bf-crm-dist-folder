@@ -9,6 +9,9 @@ import { canAccess } from '@/lib/nav';
 import { Logo } from '@/lib/logo';
 import { Loader2 } from 'lucide-react';
 
+import { BottomNav } from '@/components/bottom-nav';
+import { GlobalSearch } from '@/components/global-search';
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { profile, loading } = useAuth();
   const router = useRouter();
@@ -43,8 +46,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="lg:pl-64">
         <Header />
-        <main className="px-4 py-6 lg:px-8 lg:py-8">{children}</main>
+        <main className="mx-auto max-w-7xl px-3.5 sm:px-6 py-5 pb-24 lg:px-8 lg:py-6 lg:pb-8">{children}</main>
       </div>
+      <BottomNav />
+      <GlobalSearch />
     </div>
   );
 }

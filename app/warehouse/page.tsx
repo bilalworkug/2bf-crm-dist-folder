@@ -13,19 +13,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState } from '@/components/empty-state';
 import { ExportDropdown } from '@/components/export-dropdown';
-import { PackageCheck, Boxes, Clock, AlertTriangle, Search, CheckCircle2, XCircle, Camera } from 'lucide-react';
+import { PackageCheck, Boxes, Clock, AlertTriangle, Search, CheckCircle2, XCircle, Camera, RefreshCw } from 'lucide-react';
 import { ScanField } from '@/components/scanner/ScanField';
 import { CameraScanner } from '@/components/scanner/CameraScanner';
+import { FactoryHealthMonitor } from '@/components/factory-health-monitor';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import { formatDate, isToday } from '@/lib/format';
 import { playScanAlreadyExists, playScanError } from '@/components/scanner/audio';
+
+const PAGE_SIZE = 50;
 
 export default function WarehousePage() {
   const { profile } = useAuth();
   const [receipts, setReceipts] = useState<(WarehouseReceipt & { warehouse?: Warehouse; product?: Product; receiver?: Profile })[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [search, setSearch] = useState('');
   const [barcode, setBarcode] = useState('');
   const [warehouseId, setWarehouseId] = useState('');
@@ -54,9 +59,31 @@ export default function WarehousePage() {
       .from('warehouse_receipts')
       .select('*, warehouse:warehouses(*), product:products(*), receiver:profiles!warehouse_receipts_received_by_fkey(*)')
       .order('received_at', { ascending: false })
-      .limit(50);
-    setReceipts((data ?? []) as (WarehouseReceipt & { warehouse?: Warehouse; product?: Product; receiver?: Profile })[]);
+      .range(0, PAGE_SIZE - 1);
+    const items = (data ?? []) as (WarehouseReceipt & { warehouse?: Warehouse; product?: Product; receiver?: Profile })[];
+    setReceipts(items);
+    setHasMore(items.length === PAGE_SIZE);
     setLoading(false);
+  }
+
+  async function loadMore() {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const start = receipts.length;
+    const end = start + PAGE_SIZE - 1;
+
+    const { data } = await supabase
+      .from('warehouse_receipts')
+      .select('*, warehouse:warehouses(*), product:products(*), receiver:profiles!warehouse_receipts_received_by_fkey(*)')
+      .order('received_at', { ascending: false })
+      .range(start, end);
+
+    const newItems = (data ?? []) as (WarehouseReceipt & { warehouse?: Warehouse; product?: Product; receiver?: Profile })[];
+    if (newItems.length > 0) {
+      setReceipts((prev) => [...prev, ...newItems]);
+    }
+    setHasMore(newItems.length === PAGE_SIZE);
+    setLoadingMore(false);
   }
 
   const filtered = useMemo(() => {
@@ -120,7 +147,9 @@ export default function WarehousePage() {
         description="Receive production-scanned boxes into a warehouse."
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <FactoryHealthMonitor />
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
         <StatCard label="Received today" value={receiptsToday} icon={PackageCheck} accent="success" />
         <StatCard label="Total receipts" value={receipts.length} icon={Boxes} accent="primary" />
         <StatCard label="Awaiting receipt" value={40 - receipts.length} icon={Clock} accent="warning" hint="Scanned, not yet received" />
@@ -213,28 +242,68 @@ export default function WarehousePage() {
           ) : filtered.length === 0 ? (
             <EmptyState title="No receipts found" />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Barcode</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Warehouse</TableHead>
-                  <TableHead>Received by</TableHead>
-                  <TableHead>Received at</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Barcode</TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Warehouse</TableHead>
+                      <TableHead>Received by</TableHead>
+                      <TableHead>Received at</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="font-mono text-sm font-medium">{r.barcode}</TableCell>
+                        <TableCell>{r.product?.name ?? '—'}</TableCell>
+                        <TableCell>{r.warehouse?.code ?? '—'}</TableCell>
+                        <TableCell className="text-sm">{r.receiver?.full_name ?? '—'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{formatDate(r.received_at)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Stacked Cards */}
+              <div className="grid grid-cols-1 gap-3 md:hidden">
                 {filtered.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-mono text-sm font-medium">{r.barcode}</TableCell>
-                    <TableCell>{r.product?.name ?? '—'}</TableCell>
-                    <TableCell>{r.warehouse?.code ?? '—'}</TableCell>
-                    <TableCell className="text-sm">{r.receiver?.full_name ?? '—'}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{formatDate(r.received_at)}</TableCell>
-                  </TableRow>
+                  <div key={r.id} className="border border-border/80 rounded-xl p-4 bg-card shadow-sm space-y-2">
+                    <div className="flex justify-between items-start gap-2">
+                      <p className="font-mono font-bold text-sm text-primary">{r.barcode}</p>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                        {r.warehouse?.code ?? 'WH'}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium text-foreground">{r.product?.name ?? 'Product'}</p>
+                    <div className="flex justify-between items-center text-xs text-muted-foreground pt-1 border-t">
+                      <span>By: {r.receiver?.full_name ?? '—'}</span>
+                      <span>{formatDate(r.received_at)}</span>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+              {hasMore && (
+                <div className="mt-4 flex justify-center border-t border-slate-100 dark:border-slate-800 pt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                    className="min-w-[140px]"
+                  >
+                    {loadingMore ? (
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin mr-2" />
+                    ) : null}
+                    {loadingMore ? 'Loading...' : 'Load More Receipts'}
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

@@ -12,10 +12,17 @@ import { useAuth } from '@/lib/auth';
 import { formatDate } from '@/lib/format';
 import { ExportDropdown } from '@/components/export-dropdown';
 
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
+
+const PAGE_SIZE = 50;
+
 export default function AuditLogsPage() {
   const { profile } = useAuth();
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [search, setSearch] = useState('');
 
   const isAdminOrManager = profile && ['admin', 'manager'].includes(profile.role);
@@ -34,9 +41,31 @@ export default function AuditLogsPage() {
       .from('audit_logs')
       .select('*, user:profiles!audit_logs_user_id_fkey(full_name), warehouse:warehouses(code)')
       .order('created_at', { ascending: false })
-      .limit(100);
-    setLogs(data ?? []);
+      .range(0, PAGE_SIZE - 1);
+    const items = data ?? [];
+    setLogs(items);
+    setHasMore(items.length === PAGE_SIZE);
     setLoading(false);
+  }
+
+  async function loadMore() {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const start = logs.length;
+    const end = start + PAGE_SIZE - 1;
+
+    const { data } = await supabase
+      .from('audit_logs')
+      .select('*, user:profiles!audit_logs_user_id_fkey(full_name), warehouse:warehouses(code)')
+      .order('created_at', { ascending: false })
+      .range(start, end);
+
+    const newItems = data ?? [];
+    if (newItems.length > 0) {
+      setLogs((prev) => [...prev, ...newItems]);
+    }
+    setHasMore(newItems.length === PAGE_SIZE);
+    setLoadingMore(false);
   }
 
   const filtered = logs.filter((l) => {
@@ -93,7 +122,8 @@ export default function AuditLogsPage() {
           ) : filtered.length === 0 ? (
             <EmptyState title="No audit logs found" />
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -121,6 +151,23 @@ export default function AuditLogsPage() {
                 </TableBody>
               </Table>
             </div>
+            {hasMore && (
+              <div className="mt-4 flex justify-center border-t border-slate-100 dark:border-slate-800 pt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="min-w-[140px]"
+                >
+                  {loadingMore ? (
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin mr-2" />
+                  ) : null}
+                  {loadingMore ? 'Loading...' : 'Load More Audit Logs'}
+                </Button>
+              </div>
+            )}
+          </>
           )}
         </CardContent>
       </Card>

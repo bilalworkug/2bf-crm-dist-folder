@@ -103,7 +103,7 @@ export function DeliveryDashboard() {
 
       {loading ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {[1, 2, 3, 4].map(i => <SkeletonBlock key={i} className="h-28" />)}
           </div>
         </div>
@@ -111,7 +111,7 @@ export function DeliveryDashboard() {
         <div className="space-y-6">
 
           {/* ════ 4 KPI CARDS ════ */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <DashboardKPI
               kpi={{ value: `${data.totalDispatched.toLocaleString()} units`, label: 'Pending Delivery Quantity', description: 'Dispatched, not yet delivered', status: data.totalDispatched > 0 ? 'warning' : 'neutral' }}
               icon={<MapPin className="w-5 h-5 text-amber-600" />}

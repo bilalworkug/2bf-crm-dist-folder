@@ -4,3 +4,9 @@ dist/
 
 # Local Netlify folder
 .netlify
+
+# Build and temp artifacts
+deploy-dist/
+standard-deploy/
+*.zip
+scratch/
