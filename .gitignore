@@ -10,3 +10,7 @@ deploy-dist/
 standard-deploy/
 *.zip
 scratch/
+
+# Environment files
+.env*
+
