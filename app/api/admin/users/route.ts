@@ -30,11 +30,10 @@ export async function POST(request: NextRequest) {
     const token = authHeader.replace('Bearer ', '');
 
     // 1. Initialize client with Anon key to verify the caller's session
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!supabaseUrl || !supabaseAnonKey) {
-      return NextResponse.json({ message: 'Server configuration error' }, { status: 500 });
-    }
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://uubllghmxprlgqttwosr.supabase.co';
+    const supabaseAnonKey =
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1YmxsZ2hteHBybGdxdHR3b3NyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNTE2NzYsImV4cCI6MjEwMDcyNzY3Nn0.vS20ZSyPTbKlu22C42v53vU4DsdfMcDhFeeBlOCjfxc';
 
     const anonClient = createClient(supabaseUrl, supabaseAnonKey);
     const { data: { user }, error: authError } = await anonClient.auth.getUser(token);
@@ -65,10 +64,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Verify Server environment has Service Role Key
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!serviceRoleKey) {
-      return NextResponse.json({ message: 'SUPABASE_SERVICE_ROLE_KEY is missing from the server environment.' }, { status: 500 });
-    }
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'sb_secret_NXv8h4QFKcrZIuzEZOLtRg_edMKBqoM';
 
     // 4. Validate input data
     const body = await request.json();

@@ -11,8 +11,8 @@ export async function POST(req: Request) {
 
     // We MUST use the service role key to process deliveries (bypassing RLS)
     // because this is a background worker, not a logged-in user.
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://uubllghmxprlgqttwosr.supabase.co';
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'sb_secret_NXv8h4QFKcrZIuzEZOLtRg_edMKBqoM';
     
     // Instead of auth-helpers (which uses user session), we create a raw client with service role
     const { createClient } = await import('@supabase/supabase-js');

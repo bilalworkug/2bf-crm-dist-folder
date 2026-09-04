@@ -21,14 +21,10 @@ export async function PUT(
     const token = authHeader.replace('Bearer ', '');
 
     // ── 2. Verify Supabase environment ───────────────────────────────
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!supabaseUrl || !supabaseAnonKey) {
-      return NextResponse.json(
-        { message: 'Server configuration error' },
-        { status: 500 }
-      );
-    }
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://uubllghmxprlgqttwosr.supabase.co';
+    const supabaseAnonKey =
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1YmxsZ2hteHBybGdxdHR3b3NyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNTE2NzYsImV4cCI6MjEwMDcyNzY3Nn0.vS20ZSyPTbKlu22C42v53vU4DsdfMcDhFeeBlOCjfxc';
 
     // ── 3. Validate token → get authenticated user ───────────────────
     const anonClient = createClient(supabaseUrl, supabaseAnonKey);
@@ -78,13 +74,7 @@ export async function PUT(
     }
 
     // ── 6. Validate target user exists ───────────────────────────────
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!serviceRoleKey) {
-      return NextResponse.json(
-        { message: 'Server configuration error: service key missing' },
-        { status: 500 }
-      );
-    }
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'sb_secret_NXv8h4QFKcrZIuzEZOLtRg_edMKBqoM';
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
