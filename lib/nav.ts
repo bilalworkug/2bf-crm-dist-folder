@@ -30,7 +30,6 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Discount Approvals', href: '/sales/discounts', icon: 'BadgeDollarSign', roles: ['admin', 'sales_manager'] },
   { label: 'Returns', href: '/returns', icon: 'Undo2', roles: ['admin', 'returns_manager'] },
   { label: 'Approvals', href: '/approvals', icon: 'ClipboardCheck', roles: ['admin', 'manager', 'sales_manager', 'accounts', 'accounts_manager', 'production_manager', 'warehouse_manager'] },
-  { label: 'Shift Handover', href: '/handover', icon: 'ClipboardList', roles: 'all' },
   { label: 'Reports', href: '/reports', icon: 'BarChart3', roles: ['admin', 'production_manager', 'warehouse_manager', 'sales_manager', 'dispatch_manager', 'accounts', 'accounts_manager', 'returns_manager', 'reports', 'manager'] },
   { label: 'Audit Logs', href: '/audit', icon: 'ScrollText', roles: ['admin', 'manager'] },
   { label: 'Users & Roles', href: '/users', icon: 'UserCog', roles: ['admin'] },

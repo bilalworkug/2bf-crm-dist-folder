@@ -2,25 +2,16 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, Search, Clock } from 'lucide-react';
+import { ChevronRight, Search } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationCenter } from '@/components/notification-center';
 import { navItemsForRole } from '@/lib/nav';
 import { useAuth } from '@/lib/auth';
 import { ROLE_LABELS } from '@/lib/types';
-import { useMemo } from 'react';
-
-function getCurrentShift(): { name: string; code: string } {
-  const hour = new Date().getHours();
-  if (hour >= 6 && hour < 14) return { name: 'Morning Shift', code: 'SHIFT-1' };
-  if (hour >= 14 && hour < 22) return { name: 'Afternoon Shift', code: 'SHIFT-2' };
-  return { name: 'Night Shift', code: 'SHIFT-3' };
-}
 
 export function Header() {
   const pathname = usePathname();
   const { profile } = useAuth();
-  const shift = useMemo(() => getCurrentShift(), []);
 
   if (!profile) return null;
 
@@ -48,11 +39,6 @@ export function Header() {
 
       {/* Action Center & Profile Bar */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-        {/* Shift Badge (Industrial Context) */}
-        <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border/60 bg-muted/40 text-[11px] font-semibold text-muted-foreground">
-          <Clock className="h-3 w-3 text-amber-500" />
-          <span>{shift.name}</span>
-        </div>
 
         {/* Global Search Trigger (Ctrl+K) */}
         <button

@@ -32,13 +32,6 @@ function SkeletonBlock({ className }: { className?: string }) {
   return <div className={`bg-muted/60 rounded-lg border border-border/60 animate-pulse ${className || ''}`} />;
 }
 
-function getCurrentShiftName(): string {
-  const hour = new Date().getHours();
-  if (hour >= 6 && hour < 14) return 'Morning Shift (06:00 - 14:00)';
-  if (hour >= 14 && hour < 22) return 'Afternoon Shift (14:00 - 22:00)';
-  return 'Night Shift (22:00 - 06:00)';
-}
-
 export function AdminDashboard() {
   const { profile } = useAuth();
   const [filters, setFilters] = useState<DashboardFilters>({ dateRange: 'today' });
@@ -137,9 +130,9 @@ export function AdminDashboard() {
             <p className="text-xs sm:text-sm text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
               <span>Plant Manager: <strong className="text-foreground">{profile.full_name || 'Admin User'}</strong></span>
               <span>•</span>
-              <span className="inline-flex items-center gap-1 font-medium text-foreground">
-                <Clock className="h-3.5 w-3.5 text-amber-500" />
-                {getCurrentShiftName()}
+              <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                Active Operations
               </span>
               <span>•</span>
               <span>{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>

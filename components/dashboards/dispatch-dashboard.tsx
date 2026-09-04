@@ -204,22 +204,22 @@ export function DispatchDashboard() {
             </Link>
 
             <Link
-              href="/handover"
-              className="group flex flex-col justify-between p-4 rounded-lg border border-border/80 bg-card hover:border-amber-500/50 transition-all shadow-xs"
+              href="/delivery"
+              className="group flex flex-col justify-between p-4 rounded-lg border border-border/80 bg-card hover:border-emerald-500/50 transition-all shadow-xs"
             >
               <div>
                 <div className="flex items-center gap-2 mb-1.5">
-                  <div className="p-2 rounded-md bg-amber-500/10 text-amber-600 border border-amber-500/20">
-                    <ClipboardList className="h-4 w-4" />
+                  <div className="p-2 rounded-md bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                    <Truck className="h-4 w-4" />
                   </div>
-                  <h3 className="text-sm font-bold text-foreground">3. Shift Handover Notes</h3>
+                  <h3 className="text-sm font-bold text-foreground">3. Delivery Tracking</h3>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Log operational handover notes and equipment status for the incoming loading crew.
+                  Monitor active driver dispatches, vehicle status, and confirm delivery fulfillment notes.
                 </p>
               </div>
-              <div className="mt-4 pt-2.5 border-t border-border/40 flex items-center justify-between text-xs font-semibold text-amber-600 dark:text-amber-400">
-                <span>Log Shift Notes</span>
+              <div className="mt-4 pt-2.5 border-t border-border/40 flex items-center justify-between text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                <span>View Deliveries</span>
                 <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
               </div>
             </Link>

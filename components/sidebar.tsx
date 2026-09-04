@@ -46,7 +46,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Traceability & Reports',
     items: [
-      '/handover', '/reports', '/barcode-passport', '/barcode-search', '/box-history', '/returns'
+      '/reports', '/barcode-passport', '/barcode-search', '/box-history', '/returns'
     ],
   },
   {
