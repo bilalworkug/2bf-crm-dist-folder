@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
   Calendar, RotateCcw, Filter, ChevronDown, ChevronUp,
-  Building2, Package, Users, CreditCard, CheckCircle2, X
+  Building2, Package, Users, CreditCard, CheckCircle2, X, SlidersHorizontal
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -25,15 +25,12 @@ interface ExecutiveFilterBarProps {
   isLoading?: boolean;
 }
 
-const DATE_PRESETS: { label: string; value: ExecutiveDatePreset }[] = [
+const PRIMARY_PRESETS: { label: string; value: ExecutiveDatePreset }[] = [
   { label: 'Today', value: 'today' },
-  { label: 'Yesterday', value: 'yesterday' },
-  { label: 'Last 7 Days', value: 'last_7_days' },
-  { label: 'Last 30 Days', value: 'last_30_days' },
-  { label: 'Last 3 Months', value: 'last_3_months' },
-  { label: 'Last 6 Months', value: 'last_6_months' },
-  { label: 'Last 12 Months', value: 'last_12_months' },
-  { label: 'Custom', value: 'custom' },
+  { label: '7 Days', value: 'last_7_days' },
+  { label: '30 Days', value: 'last_30_days' },
+  { label: '6 Months', value: 'last_6_months' },
+  { label: '12 Months', value: 'last_12_months' },
 ];
 
 export function ExecutiveFilterBar({
@@ -42,7 +39,7 @@ export function ExecutiveFilterBar({
   filterOptions,
   isLoading = false,
 }: ExecutiveFilterBarProps) {
-  const [isMobileExpanded, setIsMobileExpanded] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   const handlePresetChange = (preset: ExecutiveDatePreset) => {
     onChange({
@@ -64,102 +61,134 @@ export function ExecutiveFilterBar({
     });
   };
 
+  const activeDimensionsCount = [
+    filters.warehouseId,
+    filters.productId,
+    filters.customerId,
+    filters.paymentType,
+    filters.orderStatus,
+  ].filter(Boolean).length;
+
   const hasActiveFilters =
-    filters.warehouseId ||
-    filters.productId ||
-    filters.customerId ||
-    filters.paymentType ||
-    filters.orderStatus ||
-    filters.datePreset !== 'last_30_days';
+    activeDimensionsCount > 0 ||
+    filters.datePreset !== 'last_30_days' ||
+    filters.customStartDate ||
+    filters.customEndDate;
 
   return (
-    <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border/80 shadow-xs mb-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3">
-      <div className="flex flex-col gap-3">
-        {/* Main Bar: Date Preset Tabs + Mobile Toggle + Reset */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5">
-          {/* Preset Buttons */}
+    <div className="bg-card/80 backdrop-blur-md rounded-xl border border-border/80 p-2.5 sm:p-3 shadow-xs mb-6">
+      <div className="flex flex-col gap-2.5">
+        {/* Top Clean Bar: Presets + Dimension Filter Toggle + Reset */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {/* Quick Date Presets */}
           <div className="flex items-center gap-1 overflow-x-auto py-0.5 max-w-full scrollbar-none">
-            {DATE_PRESETS.map((preset) => (
+            {PRIMARY_PRESETS.map((preset) => (
               <button
                 key={preset.value}
                 onClick={() => handlePresetChange(preset.value)}
                 className={cn(
-                  'px-3 py-1.5 text-xs font-semibold rounded-md transition-all whitespace-nowrap min-h-[34px]',
+                  'px-3 py-1.5 text-xs font-semibold rounded-lg transition-all whitespace-nowrap min-h-[32px]',
                   filters.datePreset === preset.value
                     ? 'bg-primary text-primary-foreground shadow-xs'
-                    : 'bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/60'
+                    : 'bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground'
                 )}
               >
                 {preset.label}
               </button>
             ))}
+
+            {/* Custom / Other presets dropdown */}
+            <Select
+              value={['today', 'last_7_days', 'last_30_days', 'last_6_months', 'last_12_months'].includes(filters.datePreset) ? '' : filters.datePreset}
+              onValueChange={(val) => handlePresetChange(val as ExecutiveDatePreset)}
+            >
+              <SelectTrigger className={cn(
+                'h-8 text-xs font-semibold px-2.5 rounded-lg border-0 bg-muted/40 w-auto gap-1.5',
+                !['today', 'last_7_days', 'last_30_days', 'last_6_months', 'last_12_months'].includes(filters.datePreset)
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}>
+                <Calendar className="w-3.5 h-3.5" />
+                <SelectValue placeholder="More Ranges..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="yesterday">Yesterday</SelectItem>
+                <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+                <SelectItem value="custom">Custom Date Range</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Action Tools */}
+          {/* Right Tools: Advanced Filters Toggle & Reset */}
           <div className="flex items-center gap-2">
-            {/* Mobile Expand / Collapse Button */}
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsMobileExpanded(!isMobileExpanded)}
-              className="md:hidden h-8 text-xs font-medium gap-1.5 border-border/80"
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className={cn(
+                'h-8 text-xs font-semibold gap-1.5 border-border/80 transition-all',
+                showAdvancedFilters || activeDimensionsCount > 0
+                  ? 'bg-primary/10 text-primary border-primary/30'
+                  : 'bg-card text-muted-foreground hover:text-foreground'
+              )}
             >
-              <Filter className="w-3.5 h-3.5" />
+              <SlidersHorizontal className="w-3.5 h-3.5" />
               <span>Filters</span>
-              {isMobileExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              {activeDimensionsCount > 0 && (
+                <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold">
+                  {activeDimensionsCount}
+                </span>
+              )}
+              {showAdvancedFilters ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
             </Button>
 
-            {/* Reset Filters */}
             {hasActiveFilters && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleReset}
-                className="h-8 text-xs font-medium text-muted-foreground hover:text-foreground gap-1"
-                title="Reset all filters"
+                className="h-8 text-xs font-medium text-muted-foreground hover:text-foreground gap-1 px-2"
+                title="Reset all filters to default"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
+                <RotateCcw className="w-3 h-3" />
                 <span className="hidden sm:inline">Reset</span>
               </Button>
             )}
           </div>
         </div>
 
-        {/* Custom Date Inputs if Custom is selected */}
+        {/* Custom Range Picker Drawer */}
         {filters.datePreset === 'custom' && (
-          <div className="flex flex-wrap items-center gap-2.5 p-2.5 bg-muted/20 rounded-lg border border-border/60">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/40 text-xs">
+            <span className="text-muted-foreground font-semibold flex items-center gap-1">
               <Calendar className="w-3.5 h-3.5 text-primary" />
-              <span className="font-semibold">Custom Window:</span>
-            </div>
+              Custom Range:
+            </span>
             <Input
               type="date"
               value={filters.customStartDate || ''}
               onChange={(e) => onChange({ ...filters, customStartDate: e.target.value })}
-              className="h-8 w-36 text-xs bg-background"
+              className="h-7 w-36 text-xs bg-background"
             />
-            <span className="text-xs text-muted-foreground">to</span>
+            <span className="text-muted-foreground">to</span>
             <Input
               type="date"
               value={filters.customEndDate || ''}
               onChange={(e) => onChange({ ...filters, customEndDate: e.target.value })}
-              className="h-8 w-36 text-xs bg-background"
+              className="h-7 w-36 text-xs bg-background"
             />
           </div>
         )}
 
-        {/* Dimension Filters: Desktop always shown, Mobile collapsible */}
-        <div className={cn(
-          'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 pt-1 border-t border-border/40',
-          isMobileExpanded ? 'grid' : 'hidden md:grid'
-        )}>
-          {/* Warehouse Selector */}
-          <div>
+        {/* Advanced Filters Expandable Grid */}
+        {showAdvancedFilters && (
+          <div className="pt-2.5 border-t border-border/40 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 animate-in fade-in-50 duration-150">
+            {/* Warehouse */}
             <Select
               value={filters.warehouseId || 'all'}
               onValueChange={(val) => onChange({ ...filters, warehouseId: val === 'all' ? undefined : val })}
             >
-              <SelectTrigger className="h-8 text-xs bg-card border-border/80">
+              <SelectTrigger className="h-8 text-xs bg-muted/30 border-border/80">
                 <div className="flex items-center gap-1.5 truncate">
                   <Building2 className="w-3 h-3 text-muted-foreground shrink-0" />
                   <span className="truncate">
@@ -176,15 +205,13 @@ export function ExecutiveFilterBar({
                 ))}
               </SelectContent>
             </Select>
-          </div>
 
-          {/* Product Selector */}
-          <div>
+            {/* Product */}
             <Select
               value={filters.productId || 'all'}
               onValueChange={(val) => onChange({ ...filters, productId: val === 'all' ? undefined : val })}
             >
-              <SelectTrigger className="h-8 text-xs bg-card border-border/80">
+              <SelectTrigger className="h-8 text-xs bg-muted/30 border-border/80">
                 <div className="flex items-center gap-1.5 truncate">
                   <Package className="w-3 h-3 text-muted-foreground shrink-0" />
                   <span className="truncate">
@@ -201,15 +228,13 @@ export function ExecutiveFilterBar({
                 ))}
               </SelectContent>
             </Select>
-          </div>
 
-          {/* Customer Selector */}
-          <div>
+            {/* Customer */}
             <Select
               value={filters.customerId || 'all'}
               onValueChange={(val) => onChange({ ...filters, customerId: val === 'all' ? undefined : val })}
             >
-              <SelectTrigger className="h-8 text-xs bg-card border-border/80">
+              <SelectTrigger className="h-8 text-xs bg-muted/30 border-border/80">
                 <div className="flex items-center gap-1.5 truncate">
                   <Users className="w-3 h-3 text-muted-foreground shrink-0" />
                   <span className="truncate">
@@ -226,15 +251,13 @@ export function ExecutiveFilterBar({
                 ))}
               </SelectContent>
             </Select>
-          </div>
 
-          {/* Payment Type */}
-          <div>
+            {/* Payment Type */}
             <Select
               value={filters.paymentType || 'all'}
               onValueChange={(val) => onChange({ ...filters, paymentType: val === 'all' ? undefined : val })}
             >
-              <SelectTrigger className="h-8 text-xs bg-card border-border/80">
+              <SelectTrigger className="h-8 text-xs bg-muted/30 border-border/80">
                 <div className="flex items-center gap-1.5 truncate">
                   <CreditCard className="w-3 h-3 text-muted-foreground shrink-0" />
                   <span className="truncate">{filters.paymentType ? filters.paymentType : 'Payment: All'}</span>
@@ -247,15 +270,13 @@ export function ExecutiveFilterBar({
                 ))}
               </SelectContent>
             </Select>
-          </div>
 
-          {/* Order Status */}
-          <div>
+            {/* Order Status */}
             <Select
               value={filters.orderStatus || 'all'}
               onValueChange={(val) => onChange({ ...filters, orderStatus: val === 'all' ? undefined : val })}
             >
-              <SelectTrigger className="h-8 text-xs bg-card border-border/80">
+              <SelectTrigger className="h-8 text-xs bg-muted/30 border-border/80">
                 <div className="flex items-center gap-1.5 truncate">
                   <CheckCircle2 className="w-3 h-3 text-muted-foreground shrink-0" />
                   <span className="truncate">
@@ -275,12 +296,12 @@ export function ExecutiveFilterBar({
               </SelectContent>
             </Select>
           </div>
-        </div>
+        )}
 
         {/* Active Filter Chips */}
-        {hasActiveFilters && (
-          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-            <span className="text-[11px] font-medium text-muted-foreground mr-1">Active Scope:</span>
+        {activeDimensionsCount > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
+            <span className="text-[11px] font-medium text-muted-foreground">Active:</span>
             {filters.warehouseId && (
               <Badge variant="secondary" className="text-[11px] gap-1 px-2 py-0.5">
                 Warehouse: {filterOptions.warehouses.find(w => w.id === filters.warehouseId)?.name}
