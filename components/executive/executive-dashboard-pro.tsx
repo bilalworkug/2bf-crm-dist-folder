@@ -24,7 +24,7 @@ import {
   DollarSign, Building2, ScanLine, ArrowLeftRight,
   ArrowUpRight, Clock, AlertTriangle, CheckCircle2,
   Calendar, Award, Banknote, Receipt, ChevronRight,
-  ArrowRight, ShieldAlert, Sparkles
+  ArrowRight, ShieldAlert, Sparkles, Download, FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useRealtimeDashboard } from '@/hooks/use-realtime-dashboard';
@@ -33,6 +33,8 @@ import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip as RechartsTooltip
 } from 'recharts';
+import { exportExecutiveToPDF, exportExecutiveToExcel } from '@/lib/executive-intelligence/executive-export';
+import { toast } from 'sonner';
 
 export type ExecutivePillar =
   | 'overview'
@@ -116,27 +118,74 @@ export function ExecutiveDashboardPro() {
 
   return (
     <div className="space-y-6">
-      {/* ─── EXECUTIVE PILLAR NAVIGATION TABS ─── */}
-      <div className="flex items-center gap-1.5 p-1 rounded-xl bg-muted/30 border border-border/80 overflow-x-auto scrollbar-none">
-        {PILLARS.map((p) => {
-          const Icon = p.icon;
-          const isActive = activePillar === p.id;
-          return (
-            <button
-              key={p.id}
-              onClick={() => setActivePillar(p.id)}
-              className={cn(
-                'flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap min-h-[36px]',
-                isActive
-                  ? 'bg-card text-foreground shadow-xs border border-border/80'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-              )}
-            >
-              <Icon className={cn('w-3.5 h-3.5', isActive ? 'text-primary' : 'text-muted-foreground')} />
-              <span>{p.label}</span>
-            </button>
-          );
-        })}
+      {/* ─── EXECUTIVE PILLAR NAVIGATION TABS & EXPORT ACTIONS ─── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-muted/30 border border-border/80 overflow-x-auto scrollbar-none">
+          {PILLARS.map((p) => {
+            const Icon = p.icon;
+            const isActive = activePillar === p.id;
+            return (
+              <button
+                key={p.id}
+                onClick={() => setActivePillar(p.id)}
+                className={cn(
+                  'flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap min-h-[36px]',
+                  isActive
+                    ? 'bg-card text-foreground shadow-xs border border-border/80'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                )}
+              >
+                <Icon className={cn('w-3.5 h-3.5', isActive ? 'text-primary' : 'text-muted-foreground')} />
+                <span>{p.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Pro Export Actions */}
+        <div className="flex items-center gap-2 self-end md:self-auto shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!data || loading}
+            onClick={() => {
+              if (!data) return;
+              toast.promise(
+                exportExecutiveToPDF(data, profile?.full_name || 'Admin', 'Admin'),
+                {
+                  loading: 'Compiling executive PDF briefing...',
+                  success: 'Executive PDF downloaded successfully!',
+                  error: 'Failed to generate PDF',
+                }
+              );
+            }}
+            className="h-8 text-xs font-bold gap-1.5 bg-card border-border/80 hover:border-rose-500/50 shadow-2xs"
+          >
+            <Download className="w-3.5 h-3.5 text-rose-500" />
+            <span>Executive PDF</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!data || loading}
+            onClick={() => {
+              if (!data) return;
+              toast.promise(
+                exportExecutiveToExcel(data, profile?.full_name || 'Admin', 'Admin'),
+                {
+                  loading: 'Compiling Excel workbook...',
+                  success: 'Executive Excel workbook downloaded successfully!',
+                  error: 'Failed to generate Excel',
+                }
+              );
+            }}
+            className="h-8 text-xs font-bold gap-1.5 bg-card border-border/80 hover:border-emerald-500/50 shadow-2xs"
+          >
+            <Download className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Excel Workbook</span>
+          </Button>
+        </div>
       </div>
 
       {/* ─── UNIVERSAL COMPACT FILTER BAR ─── */}
