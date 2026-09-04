@@ -21,12 +21,14 @@ import {
   ShoppingCart, RefreshCcw, Download,
   ClipboardList, CreditCard, LayoutDashboard,
   Calendar, AlertTriangle, Banknote,
-  Truck, ScanLine, Clock, FileCheck, Plus
+  Truck, ScanLine, Clock, FileCheck, Plus,
+  Sparkles, Building2
 } from 'lucide-react';
 import Link from 'next/link';
 import { fetchExecutiveInsights, type ExecutiveSummaryMetrics } from '@/lib/executive-insights';
 import { useRealtimeDashboard } from '@/hooks/use-realtime-dashboard';
 import { cn } from '@/lib/utils';
+import { ExecutiveDashboardPro } from '@/components/executive/executive-dashboard-pro';
 
 function SkeletonBlock({ className }: { className?: string }) {
   return <div className={`bg-muted/60 rounded-lg border border-border/60 animate-pulse ${className || ''}`} />;
@@ -34,6 +36,7 @@ function SkeletonBlock({ className }: { className?: string }) {
 
 export function AdminDashboard() {
   const { profile } = useAuth();
+  const [dashboardMode, setDashboardMode] = useState<'executive' | 'operations'>('executive');
   const [filters, setFilters] = useState<DashboardFilters>({ dateRange: 'today' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -104,6 +107,20 @@ export function AdminDashboard() {
 
   if (!profile) return null;
 
+  if (profile.role !== 'admin') {
+    return (
+      <DashboardShell>
+        <div className="p-8 text-center bg-card rounded-xl border border-border">
+          <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-2" />
+          <h3 className="text-base font-bold text-foreground">Access Restricted</h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            This administrative dashboard is restricted to users with the Admin role.
+          </p>
+        </div>
+      </DashboardShell>
+    );
+  }
+
   const dateFilterOptions = [
     { label: 'Today', value: 'today' },
     { label: 'Yesterday', value: 'yesterday' },
@@ -114,30 +131,74 @@ export function AdminDashboard() {
 
   return (
     <DashboardShell>
-      {/* ════ ZONE 1: COMMAND & OPERATIONAL CONTEXT BAR ════ */}
-      <div className="flex flex-col gap-4 mb-6 pb-4 border-b border-border/80">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-                Factory Operations & Executive Overview
-              </h1>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md border border-emerald-500/20 bg-emerald-500/10 text-emerald-500 text-xs font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Live Floor
+      {/* ════ EXECUTIVE PRO / FACTORY OPERATIONS MODE TOGGLE ════ */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6 pb-4 border-b border-border/80">
+        <div className="flex items-center gap-2">
+          <div className="flex p-1 rounded-xl bg-muted/60 border border-border/80 shadow-2xs">
+            <button
+              onClick={() => setDashboardMode('executive')}
+              className={cn(
+                'flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-lg transition-all',
+                dashboardMode === 'executive'
+                  ? 'bg-card text-foreground shadow-xs border border-border/80'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <span>Executive Intelligence Pro</span>
+              <span className="text-[10px] uppercase font-extrabold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                PRO
               </span>
-            </div>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
-              <span>Plant Manager: <strong className="text-foreground">{profile.full_name || 'Admin User'}</strong></span>
-              <span>•</span>
-              <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                Active Operations
-              </span>
-              <span>•</span>
-              <span>{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
-            </p>
+            </button>
+
+            <button
+              onClick={() => setDashboardMode('operations')}
+              className={cn(
+                'flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-lg transition-all',
+                dashboardMode === 'operations'
+                  ? 'bg-card text-foreground shadow-xs border border-border/80'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <Building2 className="w-4 h-4 text-primary" />
+              <span>Factory Operations</span>
+            </button>
           </div>
+        </div>
+
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>Plant Manager: <strong className="text-foreground">{profile.full_name || 'Admin User'}</strong></span>
+        </div>
+      </div>
+
+      {dashboardMode === 'executive' ? (
+        <ExecutiveDashboardPro />
+      ) : (
+        <>
+          {/* ════ ZONE 1: COMMAND & OPERATIONAL CONTEXT BAR ════ */}
+          <div className="flex flex-col gap-4 mb-6 pb-4 border-b border-border/80">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                    Factory Operations & Executive Overview
+                  </h1>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md border border-emerald-500/20 bg-emerald-500/10 text-emerald-500 text-xs font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Live Floor
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
+                  <span>Plant Manager: <strong className="text-foreground">{profile.full_name || 'Admin User'}</strong></span>
+                  <span>•</span>
+                  <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Active Operations
+                  </span>
+                  <span>•</span>
+                  <span>{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                </p>
+              </div>
 
           {/* Quick Factory Commands */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-wrap sm:flex-nowrap">
@@ -350,6 +411,8 @@ export function AdminDashboard() {
             <ActivityFeed />
           </div>
         </div>
+      )}
+        </>
       )}
     </DashboardShell>
   );
