@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { Logo } from '@/lib/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { toast } from 'sonner';
-import { Loader2, Shield, Factory, Package, Truck, BarChart3, Users, LayoutDashboard, Calculator, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Shield, Factory, Package, Truck, BarChart3, Users, LayoutDashboard, Calculator, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -109,6 +109,24 @@ export default function LoginPage() {
             </p>
           </div>
         </div>
+
+        {/* Supabase Config Warning Banner if missing on Vercel */}
+        {(!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder')) && (
+          <div className="mx-auto max-w-md rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-xs text-amber-700 dark:text-amber-300 shadow-sm backdrop-blur-sm">
+            <div className="font-bold flex items-center gap-1.5 text-sm mb-1 text-amber-800 dark:text-amber-200">
+              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+              Supabase Backend Connection Missing
+            </div>
+            <p className="leading-relaxed mb-2 text-muted-foreground">
+              Vercel has not injected your Supabase credentials into the client bundle.
+            </p>
+            <ol className="list-decimal list-inside space-y-1 font-mono text-[11px] text-amber-900 dark:text-amber-100 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20">
+              <li>Open Vercel &gt; Project Settings &gt; Environment Variables.</li>
+              <li>Ensure <b>NEXT_PUBLIC_SUPABASE_URL</b> &amp; <b>NEXT_PUBLIC_SUPABASE_ANON_KEY</b> are set for Production.</li>
+              <li>Go to <b>Deployments &gt; ... &gt; Redeploy</b> (clear cache).</li>
+            </ol>
+          </div>
+        )}
 
         {/* Email / Password login form */}
         <div className="flex justify-center">
